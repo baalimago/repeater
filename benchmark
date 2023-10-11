@@ -1,0 +1,32 @@
+#!/bin/bash
+# Simple benchmark to check that the performance is at least
+# on par with a bash for loop
+
+max_am=$1
+cmd=$2
+
+if [ -z "$max_am" ]; then
+  max_am=10000
+fi
+
+if [ -z "$cmd" ]; then
+  cmd="ls"
+fi
+
+function repeater() {
+  local n=$1
+  local cmd=$2
+
+  for i in $(seq $1); do
+    $2 > /dev/null
+  done
+}
+
+for ((i = 10; i <= $max_am; i="${i}0")); do
+  echo "== am runs: $i"
+  printf "repeater (go)"
+  time ./repeater -n $i $cmd > /dev/null
+  printf "repeater (for loop bash)"
+  time repeater $i $cmd > /dev/null
+done
+
