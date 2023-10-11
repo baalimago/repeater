@@ -12,7 +12,7 @@ import (
 
 var amRuns = flag.Int("n", 1, "Amount of times you wish to repeat the command.")
 var noColor = flag.Bool("nocolor", false, "Set to true to disable ANSI colors.")
-var progress = flag.String("progress", "hidden", "If true it will display progress. Current options are: ['oneline', 'multiline', 'hidden']. Note that 'oneline' will print on multiple lines if stdout yields a newline.")
+var progress = flag.String("progress", "hidden", "Current options are: ['oneline', 'multiline', 'hidden']. Note that 'oneline' will print on multiple lines if stdout yields a newline.")
 var output = flag.String("output", "stdout", "Set how the output of the commands will be shown. Current options are: ['stdout', 'hidden']")
 
 type color int
