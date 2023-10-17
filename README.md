@@ -8,7 +8,7 @@ go install github.com/baalimago/repeater@latest
 
 ### Usage
 ```bash
-repeater -n 1000 -progress oneline <cmd>
+repeater -n 1000 <cmd>
 ```
 
 ## Roadmap
