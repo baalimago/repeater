@@ -4,38 +4,56 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 
-	"golang.org/x/exp/slog"
+	"github.com/baalimago/repeater/internal/output"
+	"github.com/baalimago/repeater/internal/progress"
 )
 
-var amRuns = flag.Int("n", 1, "Amount of times you wish to repeat the command.")
-var noColor = flag.Bool("nocolor", false, "Set to true to disable ANSI colors.")
-var progress = flag.String("progress", "hidden", "Current options are: ['oneline', 'multiline', 'hidden']. Note that 'oneline' will print on multiple lines if stdout yields a newline.")
-var output = flag.String("output", "stdout", "Set how the output of the commands will be shown. Current options are: ['stdout', 'hidden']")
+var amRunsFlag = flag.Int("n", 1, "Amount of times you wish to repeat the command.")
+var colorFlag = flag.Bool("color", true, "Set to false to disable ANSI colors in the setup phase.")
+var progressFlag = flag.String("progress", "stdout", "Options are: ['hidden', 'reportFile', 'stdout', 'both']")
+var outputFlag = flag.String("output", "stdout", "Options are: ['hidden', 'reportFile', 'stdout', 'both']")
+var reportFlag = flag.Bool("report", true, "Set to false to not get report.")
+var reportFileFlag = flag.String("reportFile", "stdout", "Path to the file where the report will be saved. Options are: ['stdout', '<any file>']")
 
-type color int
+type colorCode int
 
 const (
-	RED    color = 31
-	GREEN  color = 32
-	YELLOW color = 33
+	RED colorCode = iota + 31
+	GREEN
+	YELLOW
 )
 
-func coloredMessage(c color, msg string) string {
-	if *noColor {
-		return msg
+type configuredOper struct {
+	am         int
+	args       []string
+	color      bool
+	progress   progress.Mode
+	output     output.Mode
+	reportFile *os.File
+}
+
+func coloredMessage(cc colorCode, msg string) string {
+	return fmt.Sprintf("\x1b[%dm%v\x1b[0m", cc, msg)
+}
+
+func (c configuredOper) printStatus(out io.Writer, status, msg string, color colorCode) {
+	if c.color {
+		status = coloredMessage(color, status)
 	}
-	return fmt.Sprintf("\x1b[%dm%v\x1b[0m", c, msg)
+	fmt.Fprintf(out, "%v: %v", status, msg)
 }
 
-func ok(msg string) {
-	fmt.Fprintf(os.Stderr, "%v: %v", coloredMessage(GREEN, "ok"), msg)
+func (c configuredOper) printErr(msg string) {
+	c.printStatus(os.Stderr, "error: ", msg, RED)
 }
 
-func error(msg string) {
-	fmt.Fprintf(os.Stderr, "%v: %v", coloredMessage(RED, "error"), msg)
+// getFile by checking if it exists and querying user about how to treat the file
+func getFile(s string) *os.File {
+	panic("unimplemented")
 }
 
 func main() {
@@ -44,36 +62,33 @@ func main() {
 	args := flag.Args()
 
 	if len(args) < 1 {
-		error("you need to supply a command\n")
+		if *colorFlag {
+			fmt.Fprintf(os.Stderr, "%v: %v", coloredMessage(RED, "error"), "you need to supply at least 1 argument")
+		} else {
+			fmt.Fprintf(os.Stderr, "error: %v", "you need to supply at least 1 argument")
+		}
 		os.Exit(1)
 	}
 
-	for i := 0; i < *amRuns; i++ {
-		cmd := exec.Command(args[0], args[1:]...)
-		switch *output {
-		case "stdout":
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-		case "hidden":
-		}
-		if *progress != "" {
-			var resultPadding string
-			if *output == "stdout" {
-				resultPadding = ", result: "
-			}
-			toPrint := fmt.Sprintf("run: (%v/%v)%v", i, *amRuns, resultPadding)
-			switch *progress {
-			case "multiline":
-				slog.Info(toPrint)
-			case "oneline":
-				fmt.Printf("\r%v", toPrint)
-			}
-		}
-		err := cmd.Run()
-		if errors.Is(err, &exec.ExitError{}) {
-			error(fmt.Sprintf("exit error found, aborting operations: %v", *err.(*exec.ExitError)))
-			os.Exit(1)
-		}
+	c := configuredOper{
+		am:    *amRunsFlag,
+		args:  args,
+		color: *colorFlag,
+		// reportFile: getFile(*reportFileFlag),
+	}
+	c.run()
+}
 
+// run the configured command. Blocking operation, errors are handeled internally as the output
+// depends on the configuration
+func (c configuredOper) run() {
+	for i := 0; i < c.am; i++ {
+		do := exec.Command(c.args[0], c.args[1:]...)
+		do.Stdout = os.Stdout
+		do.Stderr = os.Stderr
+		err := do.Run()
+		if errors.Is(err, &exec.ExitError{}) {
+			c.printErr(fmt.Sprintf("unexpected error encountered, aborting operations: %v", *err.(*exec.ExitError)))
+		}
 	}
 }
