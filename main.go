@@ -29,6 +29,7 @@ const (
 
 type configuredOper struct {
 	am         int
+	args       []string
 	color      bool
 	progress   progress.Mode
 	output     output.Mode
@@ -70,24 +71,24 @@ func main() {
 	}
 
 	c := configuredOper{
-		am:         *amRunsFlag,
-		color:      *colorFlag,
-		reportFile: getFile(*reportFileFlag),
+		am:    *amRunsFlag,
+		args:  args,
+		color: *colorFlag,
+		// reportFile: getFile(*reportFileFlag),
 	}
-
-	for i := 0; i < *amRunsFlag; i++ {
-		err := c.do(args, i)
-		c.printErr(fmt.Sprintf("failed to do cmd: %s", err))
-		if err != nil {
-		}
-	}
+	c.run()
 }
 
-func (c configuredOper) do(args []string, i int) error {
-	cmd := exec.Command(args[0], args[1:]...)
-	err := cmd.Run()
-	if errors.Is(err, &exec.ExitError{}) {
-		return fmt.Errorf("exit error found, aborting operations: %v", *err.(*exec.ExitError))
+// run the configured command. Blocking operation, errors are handeled internally as the output
+// depends on the configuration
+func (c configuredOper) run() {
+	for i := 0; i < c.am; i++ {
+		do := exec.Command(c.args[0], c.args[1:]...)
+		do.Stdout = os.Stdout
+		do.Stderr = os.Stderr
+		err := do.Run()
+		if errors.Is(err, &exec.ExitError{}) {
+			c.printErr(fmt.Sprintf("unexpected error encountered, aborting operations: %v", *err.(*exec.ExitError)))
+		}
 	}
-	return nil
 }
