@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -17,7 +18,7 @@ func Test_do(t *testing.T) {
 			am:   expectedCalls,
 			args: []string{"/bin/bash", "-c", fmt.Sprintf("echo 'line' >> %v", testFilePath)},
 		}
-		cOper.run()
+		cOper.run(context.Background())
 		// ... anticipate a certain amount of lines in the file when it's done
 		got, err := filetools.CheckAmLines(testFilePath)
 		if err != nil {
