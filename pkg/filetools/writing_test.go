@@ -9,13 +9,13 @@ import (
 	"github.com/baalimago/repeater/pkg/filetools"
 )
 
-func Test_WriteIfPossible(t *testing.T) {
+func Test_WriteStirngIfPossible(t *testing.T) {
 	t.Run("it should write... if.. possible", func(t *testing.T) {
 		goodFile := general.CreateTestFile(t, "testFile")
 		t.Cleanup(func() { goodFile.Close() })
 
 		want := "writethis"
-		_, err := filetools.WriteIfPossible(want, []*os.File{goodFile})
+		_, err := filetools.WriteStringIfPossible(want, []io.Writer{goodFile})
 		if err != nil {
 			t.Fatalf("should be possible to write, err: %v", err)
 		}

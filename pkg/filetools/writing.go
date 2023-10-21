@@ -1,9 +1,8 @@
 package filetools
 
 import (
-	"context"
 	"fmt"
-	"os"
+	"io"
 )
 
 type WriteErrors struct {
@@ -23,17 +22,17 @@ func (we *WriteErrors) add(err WriteError) {
 }
 
 type WriteError struct {
-	File *os.File
+	File io.Writer
 	Err  error
 }
 
 func (we WriteError) Error() string {
-	return fmt.Sprintf("write error for: %v, err: %v", *we.File, we.Err)
+	return fmt.Sprintf("write error for: %v, err: %v", we.File, we.Err)
 }
 
-// WriteIfPossible to the files, retuning the total amount of bytes written
+// WriteStringIfPossible to the files, retuning the total amount of bytes written
 // and a WriteErrors containing any potential errors
-func WriteIfPossible(str string, files []*os.File) (int, error) {
+func WriteStringIfPossible(str string, files []io.Writer) (int, error) {
 	tot := 0
 	var we error
 	for _, f := range files {
@@ -54,11 +53,4 @@ func WriteIfPossible(str string, files []*os.File) (int, error) {
 		}
 	}
 	return tot, we
-}
-
-// Duplicator interface describing some struct which attempts to duplicate something,
-// returning the amount of bytes that has been duplicated and and error on failures
-type Duplicator interface {
-	// Duplicate some data, return amount of bytes duplicated and/or an error
-	Duplicate(context.Context) (int64, error)
 }

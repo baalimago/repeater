@@ -2,24 +2,25 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"os/signal"
 	"syscall"
 
 	"github.com/baalimago/repeater/internal/output"
 	"github.com/baalimago/repeater/internal/progress"
-	"github.com/baalimago/repeater/pkg/filetools"
 )
 
+const DEFAULT_PROGRESS_FORMAT = "\rProgress: (%v/%v)"
+
 var amRunsFlag = flag.Int("n", 1, "Amount of times you wish to repeat the command.")
+var verboseFlag = flag.Bool("v", false, "Set to display the configured operation before running")
 var colorFlag = flag.Bool("color", true, "Set to false to disable ANSI colors in the setup phase.")
-var progressFlag = flag.String("progress", "stdout", "Options are: ['hidden', 'reportFile', 'stdout', 'both']")
-var outputFlag = flag.String("output", "stdout", "Options are: ['hidden', 'reportFile', 'stdout', 'both']")
+var progressFlag = flag.String("progress", "stdout", "Options are: ['HIDDEN', 'REPORT_FILE', 'STDOUT', 'BOTH']")
+var progressFormatFlag = flag.String("progressFormat", DEFAULT_PROGRESS_FORMAT, "Set the format for the output where first argument is the iteration and second argument is the amount of runs.")
+var outputFlag = flag.String("output", "stdout", "Options are: ['HIDDEN', 'REPORT_FILE', 'STDOUT', 'BOTH']")
 var reportFlag = flag.Bool("report", true, "Set to false to not get report.")
 var reportFileFlag = flag.String("reportFile", "stdout", "Path to the file where the report will be saved. Options are: ['stdout', '<any file>']")
 
@@ -32,12 +33,13 @@ const (
 )
 
 type configuredOper struct {
-	am         int
-	args       []string
-	color      bool
-	progress   progress.Mode
-	output     output.Mode
-	reportFile *os.File
+	am             int
+	args           []string
+	color          bool
+	progress       progress.Mode
+	progressFormat string
+	output         output.Mode
+	reportFile     *os.File
 }
 
 func coloredMessage(cc colorCode, msg string) string {
@@ -61,7 +63,11 @@ func (c configuredOper) printOK(msg string) {
 
 // getFile by checking if it exists and querying user about how to treat the file
 func getFile(s string) *os.File {
-	panic("unimplemented")
+	f, err := os.Create(s)
+	if err != nil {
+		panic(fmt.Sprintf("not good: %v", err))
+	}
+	return f
 }
 
 func main() {
@@ -70,20 +76,27 @@ func main() {
 	args := flag.Args()
 
 	if len(args) < 1 {
+		errMsg := "you need to supply at least 1 argument\n"
 		if *colorFlag {
-			fmt.Fprintf(os.Stderr, "%v: %v", coloredMessage(RED, "error"), "you need to supply at least 1 argument")
+			fmt.Fprintf(os.Stderr, "%v: %v", coloredMessage(RED, "error"), errMsg)
 		} else {
-			fmt.Fprintf(os.Stderr, "error: %v", "you need to supply at least 1 argument")
+			fmt.Fprintf(os.Stderr, "error: %v", errMsg)
 		}
 		os.Exit(1)
 	}
 
 	c := configuredOper{
-		am:       *amRunsFlag,
-		args:     args,
-		color:    *colorFlag,
-		progress: progress.STDOUT,
-		output:   output.HIDDEN,
+		am:             *amRunsFlag,
+		args:           args,
+		color:          *colorFlag,
+		progress:       progress.New(progressFlag),
+		progressFormat: *progressFormatFlag,
+		output:         output.New(outputFlag),
+		reportFile:     getFile(*reportFileFlag),
+	}
+
+	if *verboseFlag {
+		fmt.Printf("%v\n", c)
 	}
 	ctx, ctxCancel := context.WithCancel(context.Background())
 	isDone := make(chan struct{})
@@ -111,45 +124,5 @@ func main() {
 		}
 	case <-signalChannel:
 		c.printErr("aborting graceful shutdown")
-	}
-}
-
-// run the configured command. Blocking operation, errors are handeled internally as the output
-// depends on the configuration
-func (c configuredOper) run(ctx context.Context) {
-	progressStreams := make([]*os.File, 0, 2)
-	switch c.progress {
-	case progress.STDOUT:
-		progressStreams = append(progressStreams, os.Stdout)
-	case progress.REPORT_FILE:
-		progressStreams = append(progressStreams, c.reportFile)
-	case progress.BOTH:
-		progressStreams = append(progressStreams, os.Stdout)
-		progressStreams = append(progressStreams, c.reportFile)
-	}
-
-	defer filetools.WriteIfPossible("\n", progressStreams)
-
-	for i := 0; i < c.am; i++ {
-		if ctx.Err() != nil {
-			c.printErr(fmt.Sprintf("context error: %v", ctx.Err()))
-			os.Exit(1)
-		}
-		do := exec.Command(c.args[0], c.args[1:]...)
-		switch c.output {
-		case output.STDOUT:
-			do.Stdout = os.Stdout
-			do.Stderr = os.Stderr
-		case output.HIDDEN:
-		case output.REPORT_FILE:
-			do.Stdout = c.reportFile
-			do.Stderr = c.reportFile
-		}
-		err := do.Run()
-		filetools.WriteIfPossible(fmt.Sprintf("\rProgress: (%v/%v)", i, c.am), progressStreams)
-		if errors.Is(err, &exec.ExitError{}) {
-			c.printErr(fmt.Sprintf("unexpected error encountered, aborting operations: %v", *err.(*exec.ExitError)))
-			os.Exit(1)
-		}
 	}
 }
