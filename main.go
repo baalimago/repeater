@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"os/signal"
 	"syscall"
@@ -32,33 +31,8 @@ const (
 	YELLOW
 )
 
-type configuredOper struct {
-	am             int
-	args           []string
-	color          bool
-	progress       progress.Mode
-	progressFormat string
-	output         output.Mode
-	reportFile     *os.File
-}
-
 func coloredMessage(cc colorCode, msg string) string {
 	return fmt.Sprintf("\x1b[%dm%v\x1b[0m", cc, msg)
-}
-
-func (c configuredOper) printStatus(out io.Writer, status, msg string, color colorCode) {
-	if c.color {
-		status = coloredMessage(color, status)
-	}
-	fmt.Fprintf(out, "%v: %v", status, msg)
-}
-
-func (c configuredOper) printErr(msg string) {
-	c.printStatus(os.Stderr, "error", msg, RED)
-}
-
-func (c configuredOper) printOK(msg string) {
-	c.printStatus(os.Stdout, "ok", msg, GREEN)
 }
 
 // getFile by checking if it exists and querying user about how to treat the file

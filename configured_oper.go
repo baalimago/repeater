@@ -13,6 +13,31 @@ import (
 	"github.com/baalimago/repeater/pkg/filetools"
 )
 
+type configuredOper struct {
+	am             int
+	args           []string
+	color          bool
+	progress       progress.Mode
+	progressFormat string
+	output         output.Mode
+	reportFile     *os.File
+}
+
+func (c configuredOper) printStatus(out io.Writer, status, msg string, color colorCode) {
+	if c.color {
+		status = coloredMessage(color, status)
+	}
+	fmt.Fprintf(out, "%v: %v", status, msg)
+}
+
+func (c configuredOper) printErr(msg string) {
+	c.printStatus(os.Stderr, "error", msg, RED)
+}
+
+func (c configuredOper) printOK(msg string) {
+	c.printStatus(os.Stdout, "ok", msg, GREEN)
+}
+
 // run the configured command. Blocking operation, errors are handeled internally as the output
 // depends on the configuration
 func (c configuredOper) run(ctx context.Context) {
