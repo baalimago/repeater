@@ -9,10 +9,31 @@ const (
 	BOTH
 )
 
-func Convert(s string) Mode {
-	switch s {
+func New(s *string) Mode {
+	switch *s {
+	case "HIDDEN":
+		return HIDDEN
+	case "REPORT_FILE":
+		return REPORT_FILE
 	case "STDOUT":
 		return STDOUT
+	case "BOTH":
+		return BOTH
+	default:
+		return STDOUT
 	}
-	return HIDDEN
+}
+
+func (m Mode) String() string {
+	switch m {
+	case HIDDEN:
+		return "HIDDEN"
+	case REPORT_FILE:
+		return "REPORT_FILE"
+	case STDOUT:
+		return "STDOUT"
+	case BOTH:
+		return "BOTH"
+	}
+	return "UNKNOWN_TYPE"
 }
