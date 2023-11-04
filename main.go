@@ -14,14 +14,17 @@ import (
 
 const DEFAULT_PROGRESS_FORMAT = "\rProgress: (%v/%v)"
 
-var amRunsFlag = flag.Int("n", 1, "Amount of times you wish to repeat the command.")
-var verboseFlag = flag.Bool("v", false, "Set to display the configured operation before running")
-var colorFlag = flag.Bool("color", true, "Set to false to disable ANSI colors in the setup phase.")
-var progressFlag = flag.String("progress", "stdout", "Options are: ['HIDDEN', 'REPORT_FILE', 'STDOUT', 'BOTH']")
-var progressFormatFlag = flag.String("progressFormat", DEFAULT_PROGRESS_FORMAT, "Set the format for the output where first argument is the iteration and second argument is the amount of runs.")
-var outputFlag = flag.String("output", "stdout", "Options are: ['HIDDEN', 'REPORT_FILE', 'STDOUT', 'BOTH']")
-var reportFlag = flag.Bool("report", true, "Set to false to not get report.")
-var reportFileFlag = flag.String("reportFile", "stdout", "Path to the file where the report will be saved. Options are: ['stdout', '<any file>']")
+var (
+	amRunsFlag         = flag.Int("n", 1, "Amount of times you wish to repeat the command.")
+	verboseFlag        = flag.Bool("v", false, "Set to display the configured operation before running")
+	colorFlag          = flag.Bool("color", true, "Set to false to disable ANSI colors in the setup phase.")
+	progressFlag       = flag.String("progress", "stdout", "Options are: ['HIDDEN', 'REPORT_FILE', 'STDOUT', 'BOTH']")
+	progressFormatFlag = flag.String("progressFormat", DEFAULT_PROGRESS_FORMAT, "Set the format for the output where first argument is the iteration and second argument is the amount of runs.")
+	outputFlag         = flag.String("output", "", "Options are: ['HIDDEN', 'REPORT_FILE', 'STDOUT', 'BOTH']")
+	reportFlag         = flag.Bool("report", true, "Set to false to not get report.")
+	reportFileFlag     = flag.String("reportFile", "stdout", "Path to the file where the report will be saved. Options are: ['stdout', '<any file>']")
+	statisticsFlag     = flag.Bool("results", true, "Set to false if you don't wish to see statistics of the repeated command.")
+)
 
 type colorCode int
 
@@ -73,10 +76,9 @@ func main() {
 		fmt.Printf("%v\n", c)
 	}
 	ctx, ctxCancel := context.WithCancel(context.Background())
-	isDone := make(chan struct{})
+	isDone := make(chan statistics)
 	go func() {
-		c.run(ctx)
-		close(isDone)
+		isDone <- c.run(ctx)
 	}()
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, syscall.SIGINT, syscall.SIGTERM)
@@ -85,7 +87,10 @@ func main() {
 
 	// Block until a termination signal is received, or if all commands are done
 	select {
-	case <-isDone:
+	case stats := <-isDone:
+		if *statisticsFlag {
+			fmt.Printf("Statistics:%s\n", stats)
+		}
 		c.printOK("command repeated\n")
 		os.Exit(0)
 	case <-signalChannel:

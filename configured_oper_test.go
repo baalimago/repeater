@@ -119,3 +119,50 @@ func Test_configuredOper(t *testing.T) {
 		}
 	})
 }
+
+func Test_results(t *testing.T) {
+	t.Run("it should report output into results", func(t *testing.T) {
+		// This should ouput "test"
+		want := "test"
+		c := configuredOper{
+			am:   1,
+			args: []string{"printf", want},
+		}
+
+		results := c.run(context.Background())
+		gotLen := len(results.res)
+		if gotLen != 1 {
+			t.Fatalf("expected: 1, got: %v", gotLen)
+		}
+
+		got := results.res[0].output
+		if got != want {
+			t.Fatalf("expected: %v, got: %v", want, got)
+		}
+	})
+
+	t.Run("it should report all output into results", func(t *testing.T) {
+		wantAm := 10
+		c := configuredOper{
+			am: wantAm,
+			// Date is most likely to exist in most OS's running this test
+			args: []string{"date"},
+		}
+		results := c.run(context.Background())
+		res := results.res
+		gotLen := len(results.res)
+		// ensure that the correc amount is output
+		if gotLen != wantAm {
+			t.Fatalf("expected: %v, got: %v", wantAm, gotLen)
+		}
+
+		uniqueSet := make(map[string]struct{})
+		for _, k := range res {
+			_, exists := uniqueSet[k.output]
+			// Ensure that the output isn't copied for each one
+			if exists {
+				t.Fatalf("expected output to be different, this has shown twice: %v", exists)
+			}
+		}
+	})
+}

@@ -15,4 +15,4 @@ repeater -n 1000 <cmd>
 - [x] Synchronous executions with output to stdout (mimc a bash for loop)
 - [x] Progress on multiline, and singleline
 - [ ] Parallelized execution
-- [ ] Execution reports when done
+- [x] Execution reports when done
