@@ -25,6 +25,16 @@ type configuredOper struct {
 	reportFile     *os.File
 }
 
+func (c configuredOper) String() string {
+	return fmt.Sprintf(`am: %v
+command: %v
+color: %v
+progress: %s
+progress format: %q
+output: %s
+report file: %v`, c.am, c.args, c.color, c.progress, c.progressFormat, c.output, c.reportFile.Name())
+}
+
 func (c configuredOper) printStatus(out io.Writer, status, msg string, color colorCode) {
 	if c.color {
 		status = coloredMessage(color, status)

@@ -18,11 +18,11 @@ var (
 	amRunsFlag         = flag.Int("n", 1, "Amount of times you wish to repeat the command.")
 	verboseFlag        = flag.Bool("v", false, "Set to display the configured operation before running")
 	colorFlag          = flag.Bool("color", true, "Set to false to disable ANSI colors in the setup phase.")
-	progressFlag       = flag.String("progress", "stdout", "Options are: ['HIDDEN', 'REPORT_FILE', 'STDOUT', 'BOTH']")
+	progressFlag       = flag.String("progress", "STDOUT", "Options are: ['HIDDEN', 'REPORT_FILE', 'STDOUT', 'BOTH']")
 	progressFormatFlag = flag.String("progressFormat", DEFAULT_PROGRESS_FORMAT, "Set the format for the output where first argument is the iteration and second argument is the amount of runs.")
-	outputFlag         = flag.String("output", "", "Options are: ['HIDDEN', 'REPORT_FILE', 'STDOUT', 'BOTH']")
+	outputFlag         = flag.String("output", "STDOUT", "Options are: ['HIDDEN', 'REPORT_FILE', 'STDOUT', 'BOTH']")
 	reportFlag         = flag.Bool("report", true, "Set to false to not get report.")
-	reportFileFlag     = flag.String("reportFile", "stdout", "Path to the file where the report will be saved. Options are: ['stdout', '<any file>']")
+	reportFileFlag     = flag.String("reportFile", "STDOUT", "Path to the file where the report will be saved. Options are: ['STDOUT', '<any file>']")
 	statisticsFlag     = flag.Bool("results", true, "Set to false if you don't wish to see statistics of the repeated command.")
 )
 
@@ -73,7 +73,7 @@ func main() {
 	}
 
 	if *verboseFlag {
-		fmt.Printf("%v\n", c)
+		fmt.Printf("%s\n", c)
 	}
 	ctx, ctxCancel := context.WithCancel(context.Background())
 	isDone := make(chan statistics)
