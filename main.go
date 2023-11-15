@@ -41,6 +41,10 @@ func coloredMessage(cc colorCode, msg string) string {
 
 // getFile by checking if it exists and querying user about how to treat the file
 func getFile(s string) *os.File {
+	// If it's stdout, it shouldn't create file as report should be written to stdout
+	if s == "STDOUT" {
+		return nil
+	}
 	f, err := os.Create(s)
 	if err != nil {
 		panic(fmt.Sprintf("not good: %v", err))
