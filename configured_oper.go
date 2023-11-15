@@ -2,15 +2,16 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"math"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/baalimago/go_away_boilerplate/pkg/general"
 	"github.com/baalimago/repeater/internal/output"
 	"github.com/baalimago/repeater/internal/progress"
 	"github.com/baalimago/repeater/pkg/filetools"
@@ -25,9 +26,14 @@ type configuredOper struct {
 	progressFormat string
 	output         output.Mode
 	reportFile     *os.File
+	reportFileMu   *sync.Mutex
 }
 
 func (c configuredOper) String() string {
+	reportFileName := "HIDDEN"
+	if c.reportFile != nil {
+		reportFileName = c.reportFile.Name()
+	}
 	return fmt.Sprintf(`am: %v
 command: %v
 workers: %v
@@ -35,7 +41,7 @@ color: %v
 progress: %s
 progress format: %q
 output: %s
-report file: %v`, c.am, c.args, c.workers, c.color, c.progress, c.progressFormat, c.output, c.reportFile.Name())
+report file: %v`, c.am, c.args, c.workers, c.color, c.progress, c.progressFormat, c.output, reportFileName)
 }
 
 func (c configuredOper) printStatus(out io.Writer, status, msg string, color colorCode) {
@@ -69,27 +75,37 @@ func (c configuredOper) run(ctx context.Context) statistics {
 
 	defer filetools.WriteStringIfPossible("\n", progressStreams)
 
-	ret := statistics{
-		resMu: &sync.Mutex{},
-	}
+	ret := statistics{}
 	minMaxMu := &sync.Mutex{}
 	min := time.Duration(math.MaxInt64)
 	max := time.Duration(-1)
 
 	workChan := make(chan int)
+	// Buffer the channel for each worker, so that the workers may leave a result and then quit
+	resultChan := make(chan result, c.am)
 	workCtx, workCtxCancel := context.WithCancel(ctx)
-	workersDone := sync.WaitGroup{}
-	workersDone.Add(c.workers)
+	runningWorkers := 0
+	runningWorkersMu := &sync.Mutex{}
 	for i := 0; i < c.workers; i++ {
-		go func(workerID int) {
+		go func(workerID, amTasks int) {
+			general.RaceSafeWrite(runningWorkersMu, general.RaceSafeRead(runningWorkersMu, &runningWorkers)+1, &runningWorkers)
+			defer func() {
+				general.RaceSafeWrite(runningWorkersMu, general.RaceSafeRead(runningWorkersMu, &runningWorkers)-1, &runningWorkers)
+			}()
 			for {
 				select {
 				case <-workCtx.Done():
-					workersDone.Done()
 					return
 				case taskIdx := <-workChan:
 					res := result{
-						idx: taskIdx,
+						workerID: workerID,
+						idx:      taskIdx,
+					}
+					// Kill the worker here if the sought after amount of repetitions has been performed
+					if taskIdx == amTasks {
+						// Send result here to unbock delegator
+						resultChan <- res
+						return
 					}
 					do := exec.Command(c.args[0], c.args[1:]...)
 					switch c.output {
@@ -122,30 +138,48 @@ func (c configuredOper) run(ctx context.Context) statistics {
 					}
 					minMaxMu.Unlock()
 
-					ret.resMu.Lock()
-					ret.res = append(ret.res, res)
-					ret.resMu.Unlock()
-					var exitErr *exec.ExitError
-					if errors.As(err, &exitErr) {
-						c.printErr(fmt.Sprintf("unexpected error encountered for: %v, aborting operations: %v", workerID, exitErr))
-						os.Exit(1)
+					if err != nil {
+						res.output = fmt.Sprintf("ERROR: %v, check output for more info", err)
+						resultChan <- res
+						return
+					} else {
+						resultChan <- res
 					}
-					filetools.WriteStringIfPossible(fmt.Sprintf(c.progressFormat, taskIdx+1, c.am), progressStreams)
 				}
 			}
-		}(i)
+		}(i, c.am)
 	}
 
 	confOperStart := time.Now()
-	for i := 0; i < c.am; i++ {
+	i := 0
+WORK_DELEGATOR:
+	for {
 		if ctx.Err() != nil {
 			c.printErr(fmt.Sprintf("context error: %v", ctx.Err()))
 			os.Exit(1)
 		}
-		workChan <- i
+		select {
+		case res := <-resultChan:
+			if strings.Contains(res.output, "ERROR:") {
+				c.printErr(fmt.Sprintf("worker: %v received %v\n", res.workerID, res.output))
+			} else if res.idx == c.am {
+				c.printOK(fmt.Sprintf("worker: %v exited", res.workerID))
+			} else {
+				ret.res = append(ret.res, res)
+				filetools.WriteStringIfPossible(fmt.Sprintf(c.progressFormat, i, c.am), progressStreams)
+			}
+
+			if general.RaceSafeRead(runningWorkersMu, &runningWorkers) == 0 && len(resultChan) == 0 {
+				break WORK_DELEGATOR
+			}
+		case workChan <- i:
+			if i == c.am {
+				continue
+			}
+			i++
+		}
 	}
 	workCtxCancel()
-	workersDone.Wait()
 	ret.totalTime = time.Since(confOperStart)
 
 	return ret

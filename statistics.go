@@ -3,14 +3,14 @@ package main
 import (
 	"fmt"
 	"math"
-	"sync"
 	"time"
 )
 
 type result struct {
-	idx     int
-	runtime time.Duration
-	output  string
+	workerID int
+	idx      int
+	runtime  time.Duration
+	output   string
 }
 
 // Write implements io.Writer to get the output of the command for
@@ -26,7 +26,6 @@ type statistics struct {
 	avr       time.Duration
 	totalTime time.Duration
 	res       []result
-	resMu     *sync.Mutex
 }
 
 func (s statistics) add(r result) {
@@ -36,6 +35,9 @@ func (s statistics) add(r result) {
 func (s statistics) String() string {
 	tot := time.Duration(0)
 	n := len(s.res)
+	if n == 0 {
+		return "No results were caught, cannot produce statisitcs"
+	}
 	for _, r := range s.res {
 		tot += r.runtime
 	}

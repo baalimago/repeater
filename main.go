@@ -17,7 +17,7 @@ const DEFAULT_PROGRESS_FORMAT = "\rProgress: (%v/%v)"
 var (
 	amRunsFlag         = flag.Int("n", 1, "Amount of times you wish to repeat the command.")
 	verboseFlag        = flag.Bool("v", false, "Set to display the configured operation before running")
-	workersFlag        = flag.Int("w", 1, "Set the amout of workers to repeat the command with. Having more than 1 makes execution paralell.")
+	workersFlag        = flag.Int("w", 1, "Set the amout of workers to repeat the command with. Having more than 1 makes execution paralell. Expect performance diminishing returns when approaching CPU threads.")
 	colorFlag          = flag.Bool("color", true, "Set to false to disable ANSI colors in the setup phase.")
 	progressFlag       = flag.String("progress", "STDOUT", "Options are: ['HIDDEN', 'REPORT_FILE', 'STDOUT', 'BOTH']")
 	progressFormatFlag = flag.String("progressFormat", DEFAULT_PROGRESS_FORMAT, "Set the format for the output where first argument is the iteration and second argument is the amount of runs.")
@@ -76,6 +76,11 @@ func main() {
 		progressFormat: *progressFormatFlag,
 		output:         output.New(outputFlag),
 		reportFile:     getFile(*reportFileFlag),
+	}
+
+	if c.workers >= c.am {
+		c.printErr(fmt.Sprintf("please use less workers than tasks. Am workes: %v, am tasks: %v", c.workers, c.am))
+		os.Exit(1)
 	}
 
 	if *verboseFlag {
