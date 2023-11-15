@@ -14,5 +14,5 @@ repeater -n 1000 <cmd>
 ## Roadmap
 - [x] Synchronous executions with output to stdout (mimc a bash for loop)
 - [x] Progress on multiline, and singleline
-- [ ] Parallelized execution
+- [x] Parallelized execution
 - [x] Execution reports when done

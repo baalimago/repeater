@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math"
+	"sync"
 	"time"
 )
 
@@ -20,10 +21,12 @@ func (r *result) Write(p []byte) (n int, err error) {
 }
 
 type statistics struct {
-	max result
-	min result
-	avr time.Duration
-	res []result
+	max       result
+	min       result
+	avr       time.Duration
+	totalTime time.Duration
+	res       []result
+	resMu     *sync.Mutex
 }
 
 func (s statistics) add(r result) {
@@ -46,9 +49,9 @@ func (s statistics) String() string {
 	stdDeviation := time.Duration(int64(math.Sqrt(variance)))
 
 	return fmt.Sprintf(`
-Total time: %v, Average time: %v, Std deviation: %v
+Total time: %v, Average time per task: %v, Std deviation: %v
 Max time, index: %v, time: %v
-Min time, index: %v, time: %v`, tot, time.Duration(avr), time.Duration(stdDeviation),
+Min time, index: %v, time: %v`, s.totalTime, time.Duration(avr), time.Duration(stdDeviation),
 		s.max.idx, s.max.runtime,
 		s.min.idx, s.min.runtime)
 }
