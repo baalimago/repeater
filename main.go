@@ -25,6 +25,7 @@ var (
 	reportFlag         = flag.Bool("report", true, "Set to false to not get report.")
 	reportFileFlag     = flag.String("reportFile", "STDOUT", "Path to the file where the report will be saved. Options are: ['STDOUT', '<any file>']")
 	statisticsFlag     = flag.Bool("results", true, "Set to false if you don't wish to see statistics of the repeated command.")
+	incrementFlag      = flag.Bool("increment", false, "Set to true and add an argument 'INC', to have 'INC' be replaced with the iteration. If increment == true && 'INC' is not set, repeater will panic.")
 )
 
 type colorCode int
@@ -76,6 +77,7 @@ func main() {
 		progressFormat: *progressFormatFlag,
 		output:         output.New(outputFlag),
 		reportFile:     getFile(*reportFileFlag),
+		increment:      *incrementFlag,
 	}
 
 	if c.workers >= c.am {

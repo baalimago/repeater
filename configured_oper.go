@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -27,6 +28,43 @@ type configuredOper struct {
 	output         output.Mode
 	reportFile     *os.File
 	reportFileMu   *sync.Mutex
+	increment      bool
+}
+
+type incrementConfigError struct {
+	args []string
+}
+
+func (ice incrementConfigError) Error() string {
+	return fmt.Sprintf("args: %v, does not contain string 'INC'", ice.args)
+}
+
+func New(am, workers int,
+	args []string,
+	color bool,
+	progress progress.Mode,
+	progressFormat string,
+	output output.Mode,
+	reportFile *os.File,
+	reportFileMu *sync.Mutex,
+	increment bool,
+) (configuredOper, error) {
+	if increment && !slices.Contains(args, "INC") {
+		return configuredOper{}, incrementConfigError{args: args}
+	}
+
+	return configuredOper{
+		am:             am,
+		workers:        workers,
+		color:          color,
+		args:           args,
+		progress:       progress,
+		progressFormat: progressFormat,
+		output:         output,
+		reportFile:     reportFile,
+		reportFileMu:   reportFileMu,
+		increment:      increment,
+	}, nil
 }
 
 func (c configuredOper) String() string {
@@ -85,6 +123,9 @@ func (c configuredOper) run(ctx context.Context) statistics {
 	resultChan := make(chan result, c.am)
 	workCtx, workCtxCancel := context.WithCancel(ctx)
 	runningWorkers := 0
+	if c.workers == 0 {
+		c.workers = 1
+	}
 	runningWorkersMu := &sync.Mutex{}
 	for i := 0; i < c.workers; i++ {
 		go func(workerID, amTasks int) {

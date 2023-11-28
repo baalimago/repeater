@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/baalimago/go_away_boilerplate/pkg/general"
@@ -93,7 +95,7 @@ func Test_configuredOper(t *testing.T) {
 		runTest(progress.REPORT_FILE, true)
 	})
 
-	t.Run("it should follow format set in outputFormat", func(t *testing.T) {
+	t.Run("it should follow format set in progressFormat", func(t *testing.T) {
 		wantFormat := "lol%vtest%v"
 		testFile := general.CreateTestFile(t, "testFile")
 		c := configuredOper{
@@ -163,6 +165,35 @@ func Test_results(t *testing.T) {
 			if exists {
 				t.Fatalf("expected output to be different, this has shown twice: %v", exists)
 			}
+		}
+	})
+}
+
+func Test_configuredOper_New(t *testing.T) {
+	t.Run("it should return incrementConfigError if increment is true and no args contains 'INC'", func(t *testing.T) {
+		args := []string{"test", "abc"}
+		_, gotErr := New(0, 0, args, true, progress.HIDDEN, "testing", output.HIDDEN, nil, nil, true)
+		if gotErr == nil {
+			t.Fatal("expected to get error, got nil")
+		}
+
+		var got incrementConfigError
+		if !errors.As(gotErr, &got) {
+			t.Fatalf("expected to get incrementConfigError, got: %v", gotErr)
+		}
+
+		for _, want := range args {
+			if !strings.Contains(got.Error(), want) {
+				t.Fatalf("error: %v, does not contain: %v", got, want)
+			}
+		}
+	})
+
+	t.Run("it should't return an error if increment is true and argument contains 'INC'", func(t *testing.T) {
+		args := []string{"test", "abc", "INC"}
+		_, gotErr := New(0, 0, args, true, progress.HIDDEN, "testing", output.HIDDEN, nil, nil, true)
+		if gotErr != nil {
+			t.Fatalf("expected nil, got: %v", gotErr)
 		}
 	})
 }

@@ -9,7 +9,6 @@ import (
 )
 
 func Test_do(t *testing.T) {
-
 	t.Run("it should run command am amount of times", func(t *testing.T) {
 		expectedCalls := 123
 		testFilePath := fmt.Sprintf("%v/testFile", t.TempDir())
