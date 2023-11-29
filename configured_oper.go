@@ -81,12 +81,13 @@ func (c configuredOper) String() string {
 	}
 	return fmt.Sprintf(`am: %v
 command: %v
+increment: %v
 workers: %v
 color: %v
 progress: %s
 progress format: %q
 output: %s
-report file: %v`, c.am, c.args, c.workers, c.color, c.progress, c.progressFormat, c.output, reportFileName)
+report file: %v`, c.am, c.args, c.increment, c.workers, c.color, c.progress, c.progressFormat, c.output, reportFileName)
 }
 
 func (c configuredOper) printStatus(out io.Writer, status, msg string, color colorCode) {
@@ -135,6 +136,20 @@ func (c *configuredOper) setupOutputStreams(toDo *exec.Cmd, res *result) {
 	}
 }
 
+func (c configuredOper) replaceIncrement(args []string, i int) []string {
+	if c.increment {
+		var newArgs []string
+		for _, arg := range args {
+			if arg == "INC" {
+				arg = fmt.Sprintf("%v", i)
+			}
+			newArgs = append(newArgs, arg)
+		}
+		return newArgs
+	}
+	return args
+}
+
 // run the configured command. Blocking operation, errors are handeled internally as the output
 // depends on the configuration
 func (c configuredOper) run(ctx context.Context) statistics {
@@ -176,7 +191,10 @@ func (c configuredOper) run(ctx context.Context) statistics {
 						resultChan <- res
 						return
 					}
-					do := exec.Command(c.args[0], c.args[1:]...)
+					cmd := c.args[0]
+					args := c.args[1:]
+					args = c.replaceIncrement(args, taskIdx)
+					do := exec.Command(cmd, args...)
 					c.setupOutputStreams(do, &res)
 					t0 := time.Now()
 					err := do.Run()
