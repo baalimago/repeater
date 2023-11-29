@@ -42,12 +42,19 @@ func (ice incrementConfigError) Error() string {
 func New(am, workers int,
 	args []string,
 	color bool,
-	progress progress.Mode,
+	pMode progress.Mode,
 	progressFormat string,
-	output output.Mode,
+	oMode output.Mode,
 	reportFile *os.File,
 	increment bool,
 ) (configuredOper, error) {
+	shouldHaveReportFile := pMode == progress.REPORT_FILE || pMode == progress.REPORT_FILE ||
+		oMode == output.BOTH || oMode == output.REPORT_FILE
+
+	if shouldHaveReportFile && reportFile == nil {
+		return configuredOper{}, fmt.Errorf("progress: %v, or output: %v, requires a report file, but none is specified", pMode, oMode)
+	}
+
 	if increment && !slices.Contains(args, "INC") {
 		return configuredOper{
 			color: *colorFlag,
@@ -65,9 +72,9 @@ func New(am, workers int,
 		workers:        workers,
 		color:          color,
 		args:           args,
-		progress:       progress,
+		progress:       pMode,
 		progressFormat: progressFormat,
-		output:         output,
+		output:         oMode,
 		reportFile:     reportFile,
 		reportFileMu:   &sync.Mutex{},
 		increment:      increment,
@@ -191,10 +198,8 @@ func (c configuredOper) run(ctx context.Context) statistics {
 						resultChan <- res
 						return
 					}
-					cmd := c.args[0]
-					args := c.args[1:]
-					args = c.replaceIncrement(args, taskIdx)
-					do := exec.Command(cmd, args...)
+					args := c.replaceIncrement(c.args[1:], taskIdx)
+					do := exec.Command(c.args[0], args...)
 					c.setupOutputStreams(do, &res)
 					t0 := time.Now()
 					err := do.Run()

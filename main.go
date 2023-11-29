@@ -22,7 +22,6 @@ var (
 	progressFlag       = flag.String("progress", "STDOUT", "Options are: ['HIDDEN', 'REPORT_FILE', 'STDOUT', 'BOTH']")
 	progressFormatFlag = flag.String("progressFormat", DEFAULT_PROGRESS_FORMAT, "Set the format for the output where first argument is the iteration and second argument is the amount of runs.")
 	outputFlag         = flag.String("output", "STDOUT", "Options are: ['HIDDEN', 'REPORT_FILE', 'STDOUT', 'BOTH']")
-	reportFlag         = flag.Bool("report", true, "Set to false to not get report.")
 	reportFileFlag     = flag.String("reportFile", "STDOUT", "Path to the file where the report will be saved. Options are: ['STDOUT', '<any file>']")
 	statisticsFlag     = flag.Bool("statistics", true, "Set to false if you don't wish to see statistics of the repeated command.")
 	incrementFlag      = flag.Bool("increment", false, "Set to true and add an argument 'INC', to have 'INC' be replaced with the iteration. If increment == true && 'INC' is not set, repeater will panic.")
@@ -67,19 +66,6 @@ func main() {
 		}
 		os.Exit(1)
 	}
-
-	c := configuredOper{
-		am:             *amRunsFlag,
-		args:           args,
-		workers:        *workersFlag,
-		color:          *colorFlag,
-		progress:       progress.New(progressFlag),
-		progressFormat: *progressFormatFlag,
-		output:         output.New(outputFlag),
-		reportFile:     getFile(*reportFileFlag),
-		increment:      *incrementFlag,
-	}
-
 	c, err := New(*amRunsFlag, *workersFlag, args, *colorFlag, progress.New(progressFlag), *progressFormatFlag, output.New(outputFlag), getFile(*reportFileFlag), *incrementFlag)
 	if err != nil {
 		c.printErr(fmt.Sprintf("configuration error: %v\n", err))
@@ -105,7 +91,7 @@ func main() {
 		if *statisticsFlag {
 			fmt.Printf("== Statistics ==%s\n", stats)
 		}
-		c.printOK("i have done the repeat.\n")
+		c.printOK("The repeat, had been done. Farewell.\n")
 		os.Exit(0)
 	case <-signalChannel:
 	}
