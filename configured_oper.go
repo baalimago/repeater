@@ -97,9 +97,7 @@ func (c configuredOper) printOK(msg string) {
 	c.printStatus(os.Stdout, "ok", msg, GREEN)
 }
 
-// run the configured command. Blocking operation, errors are handeled internally as the output
-// depends on the configuration
-func (c configuredOper) run(ctx context.Context) statistics {
+func (c configuredOper) setupProgressStreams() []io.Writer {
 	progressStreams := make([]io.Writer, 0, 2)
 	switch c.progress {
 	case progress.STDOUT:
@@ -110,7 +108,30 @@ func (c configuredOper) run(ctx context.Context) statistics {
 		progressStreams = append(progressStreams, os.Stdout)
 		progressStreams = append(progressStreams, c.reportFile)
 	}
+	return progressStreams
+}
 
+func (c *configuredOper) setupOutputStreams(toDo *exec.Cmd, res *result) {
+	switch c.output {
+	case output.STDOUT:
+		toDo.Stdout = io.MultiWriter(os.Stdout, res)
+		toDo.Stderr = io.MultiWriter(os.Stderr, res)
+	case output.HIDDEN:
+		toDo.Stdout = res
+		toDo.Stderr = res
+	case output.REPORT_FILE:
+		toDo.Stdout = io.MultiWriter(c.reportFile, res)
+		toDo.Stderr = io.MultiWriter(c.reportFile, res)
+	case output.BOTH:
+		toDo.Stdout = io.MultiWriter(c.reportFile, os.Stdout, res)
+		toDo.Stderr = io.MultiWriter(c.reportFile, os.Stderr, res)
+	}
+}
+
+// run the configured command. Blocking operation, errors are handeled internally as the output
+// depends on the configuration
+func (c configuredOper) run(ctx context.Context) statistics {
+	progressStreams := c.setupProgressStreams()
 	defer filetools.WriteStringIfPossible("\n", progressStreams)
 
 	ret := statistics{}
@@ -123,7 +144,7 @@ func (c configuredOper) run(ctx context.Context) statistics {
 	resultChan := make(chan result, c.am)
 	workCtx, workCtxCancel := context.WithCancel(ctx)
 	runningWorkers := 0
-	if c.workers == 0 {
+	if c.workers < 1 {
 		c.workers = 1
 	}
 	runningWorkersMu := &sync.Mutex{}
@@ -149,25 +170,10 @@ func (c configuredOper) run(ctx context.Context) statistics {
 						return
 					}
 					do := exec.Command(c.args[0], c.args[1:]...)
-					switch c.output {
-					case output.STDOUT:
-						do.Stdout = io.MultiWriter(os.Stdout, &res)
-						do.Stderr = io.MultiWriter(os.Stderr, &res)
-					case output.HIDDEN:
-						do.Stdout = &res
-						do.Stderr = &res
-					case output.REPORT_FILE:
-						do.Stdout = io.MultiWriter(c.reportFile, &res)
-						do.Stderr = io.MultiWriter(c.reportFile, &res)
-					case output.BOTH:
-						do.Stdout = io.MultiWriter(c.reportFile, os.Stdout, &res)
-						do.Stderr = io.MultiWriter(c.reportFile, os.Stderr, &res)
-					}
-
+					c.setupOutputStreams(do, &res)
 					t0 := time.Now()
 					err := do.Run()
 					res.runtime = time.Since(t0)
-
 					minMaxMu.Lock()
 					if res.runtime > max {
 						ret.max = res
