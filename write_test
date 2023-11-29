@@ -1,6 +1,0 @@
-#!/bin/bash
-
-echo "t0" > /tmp/t0
-echo "t1" >> /tmp/t0
-cat /tmp/t0
-rm /tmp/t0

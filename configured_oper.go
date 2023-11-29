@@ -36,7 +36,7 @@ type incrementConfigError struct {
 }
 
 func (ice incrementConfigError) Error() string {
-	return fmt.Sprintf("args: %v, does not contain string 'INC'", ice.args)
+	return fmt.Sprintf("increment is true, but args: %v, does not contain string 'INC'", ice.args)
 }
 
 func New(am, workers int,
@@ -46,11 +46,18 @@ func New(am, workers int,
 	progressFormat string,
 	output output.Mode,
 	reportFile *os.File,
-	reportFileMu *sync.Mutex,
 	increment bool,
 ) (configuredOper, error) {
 	if increment && !slices.Contains(args, "INC") {
-		return configuredOper{}, incrementConfigError{args: args}
+		return configuredOper{
+			color: *colorFlag,
+		}, incrementConfigError{args: args}
+	}
+
+	if workers >= am {
+		return configuredOper{
+			color: *colorFlag,
+		}, fmt.Errorf("please use less workers than repetitions. Am workes: %v, am repetitions: %v", workers, am)
 	}
 
 	return configuredOper{
@@ -62,7 +69,7 @@ func New(am, workers int,
 		progressFormat: progressFormat,
 		output:         output,
 		reportFile:     reportFile,
-		reportFileMu:   reportFileMu,
+		reportFileMu:   &sync.Mutex{},
 		increment:      increment,
 	}, nil
 }
@@ -210,7 +217,8 @@ WORK_DELEGATOR:
 			if strings.Contains(res.output, "ERROR:") {
 				c.printErr(fmt.Sprintf("worker: %v received %v\n", res.workerID, res.output))
 			} else if res.idx == c.am {
-				c.printOK(fmt.Sprintf("worker: %v exited", res.workerID))
+				// Used for debug
+				// c.printOK(fmt.Sprintf("worker: %v exited\n", res.workerID))
 			} else {
 				ret.res = append(ret.res, res)
 				filetools.WriteStringIfPossible(fmt.Sprintf(c.progressFormat, i, c.am), progressStreams)

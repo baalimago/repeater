@@ -24,7 +24,7 @@ var (
 	outputFlag         = flag.String("output", "STDOUT", "Options are: ['HIDDEN', 'REPORT_FILE', 'STDOUT', 'BOTH']")
 	reportFlag         = flag.Bool("report", true, "Set to false to not get report.")
 	reportFileFlag     = flag.String("reportFile", "STDOUT", "Path to the file where the report will be saved. Options are: ['STDOUT', '<any file>']")
-	statisticsFlag     = flag.Bool("results", true, "Set to false if you don't wish to see statistics of the repeated command.")
+	statisticsFlag     = flag.Bool("statistics", true, "Set to false if you don't wish to see statistics of the repeated command.")
 	incrementFlag      = flag.Bool("increment", false, "Set to true and add an argument 'INC', to have 'INC' be replaced with the iteration. If increment == true && 'INC' is not set, repeater will panic.")
 )
 
@@ -80,8 +80,9 @@ func main() {
 		increment:      *incrementFlag,
 	}
 
-	if c.workers >= c.am {
-		c.printErr(fmt.Sprintf("please use less workers than tasks. Am workes: %v, am tasks: %v", c.workers, c.am))
+	c, err := New(*amRunsFlag, *workersFlag, args, *colorFlag, progress.New(progressFlag), *progressFormatFlag, output.New(outputFlag), getFile(*reportFileFlag), *incrementFlag)
+	if err != nil {
+		c.printErr(fmt.Sprintf("configuration error: %v\n", err))
 		os.Exit(1)
 	}
 
@@ -102,9 +103,9 @@ func main() {
 	select {
 	case stats := <-isDone:
 		if *statisticsFlag {
-			fmt.Printf("Statistics:%s\n", stats)
+			fmt.Printf("== Statistics ==%s\n", stats)
 		}
-		c.printOK("command repeated\n")
+		c.printOK("i have done the repeat.\n")
 		os.Exit(0)
 	case <-signalChannel:
 	}
