@@ -18,8 +18,8 @@ Personally I've used it to CRUD state in paralell and fill login event logs as f
 # The output of curl will then be printed to the report file
 repeater -n 100 -w 10 -reportFile ./run_output -output REPORT_FILE -progress BOTH curl example.com
 
-# This will print "this is increment 1234..."
 repeater -n 100 -increment echo "this is increment: " INC
+# ... will print "this is increment 1\nthis is increment 2\n..."
 
 # Show all avaliable flags 
 repeater -h
