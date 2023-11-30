@@ -9,7 +9,6 @@ import (
 	"syscall"
 
 	"github.com/baalimago/repeater/internal/output"
-	"github.com/baalimago/repeater/internal/progress"
 )
 
 const DEFAULT_PROGRESS_FORMAT = "\rProgress: (%v/%v)"
@@ -66,7 +65,7 @@ func main() {
 		}
 		os.Exit(1)
 	}
-	c, err := New(*amRunsFlag, *workersFlag, args, *colorFlag, progress.New(progressFlag), *progressFormatFlag, output.New(outputFlag), getFile(*reportFileFlag), *incrementFlag)
+	c, err := New(*amRunsFlag, *workersFlag, args, *colorFlag, output.New(progressFlag), *progressFormatFlag, output.New(outputFlag), getFile(*reportFileFlag), *incrementFlag)
 	if err != nil {
 		c.printErr(fmt.Sprintf("configuration error: %v\n", err))
 		os.Exit(1)

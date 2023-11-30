@@ -14,7 +14,6 @@ import (
 
 	"github.com/baalimago/go_away_boilerplate/pkg/general"
 	"github.com/baalimago/repeater/internal/output"
-	"github.com/baalimago/repeater/internal/progress"
 	"github.com/baalimago/repeater/pkg/filetools"
 )
 
@@ -23,7 +22,7 @@ type configuredOper struct {
 	workers        int
 	args           []string
 	color          bool
-	progress       progress.Mode
+	progress       output.Mode
 	progressFormat string
 	output         output.Mode
 	reportFile     *os.File
@@ -42,13 +41,13 @@ func (ice incrementConfigError) Error() string {
 func New(am, workers int,
 	args []string,
 	color bool,
-	pMode progress.Mode,
+	pMode output.Mode,
 	progressFormat string,
 	oMode output.Mode,
 	reportFile *os.File,
 	increment bool,
 ) (configuredOper, error) {
-	shouldHaveReportFile := pMode == progress.REPORT_FILE || pMode == progress.REPORT_FILE ||
+	shouldHaveReportFile := pMode == output.BOTH || pMode == output.REPORT_FILE ||
 		oMode == output.BOTH || oMode == output.REPORT_FILE
 
 	if shouldHaveReportFile && reportFile == nil {
@@ -115,11 +114,11 @@ func (c configuredOper) printOK(msg string) {
 func (c configuredOper) setupProgressStreams() []io.Writer {
 	progressStreams := make([]io.Writer, 0, 2)
 	switch c.progress {
-	case progress.STDOUT:
+	case output.STDOUT:
 		progressStreams = append(progressStreams, os.Stdout)
-	case progress.REPORT_FILE:
+	case output.REPORT_FILE:
 		progressStreams = append(progressStreams, c.reportFile)
-	case progress.BOTH:
+	case output.BOTH:
 		progressStreams = append(progressStreams, os.Stdout)
 		progressStreams = append(progressStreams, c.reportFile)
 	}

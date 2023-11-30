@@ -11,7 +11,6 @@ import (
 
 	"github.com/baalimago/go_away_boilerplate/pkg/general"
 	"github.com/baalimago/repeater/internal/output"
-	"github.com/baalimago/repeater/internal/progress"
 )
 
 func checkReportFileContent(reportFile string) (string, error) {
@@ -35,7 +34,7 @@ func Test_configuredOper(t *testing.T) {
 				am:         1,
 				args:       []string{"printf", fmt.Sprintf("%v", outputString)},
 				color:      false,
-				progress:   progress.HIDDEN,
+				progress:   output.HIDDEN,
 				output:     outputMode,
 				reportFile: testFile,
 			}
@@ -60,7 +59,7 @@ func Test_configuredOper(t *testing.T) {
 	})
 
 	t.Run("it should print progress to report file when flagged to do so", func(t *testing.T) {
-		runTest := func(outputMode progress.Mode, wantProgress bool) {
+		runTest := func(outputMode output.Mode, wantProgress bool) {
 			testFile := general.CreateTestFile(t, "tFile")
 			outputString := "something"
 			progFormat := "%v/%v"
@@ -89,10 +88,10 @@ func Test_configuredOper(t *testing.T) {
 				t.Fatalf("for: %s, expected empty string, got: %v", outputMode, got)
 			}
 		}
-		runTest(progress.STDOUT, false)
-		runTest(progress.HIDDEN, false)
-		runTest(progress.BOTH, true)
-		runTest(progress.REPORT_FILE, true)
+		runTest(output.STDOUT, false)
+		runTest(output.HIDDEN, false)
+		runTest(output.BOTH, true)
+		runTest(output.REPORT_FILE, true)
 	})
 
 	t.Run("it should follow format set in progressFormat", func(t *testing.T) {
@@ -102,7 +101,7 @@ func Test_configuredOper(t *testing.T) {
 			am:             1,
 			args:           []string{"true"},
 			color:          false,
-			progress:       progress.REPORT_FILE,
+			progress:       output.REPORT_FILE,
 			progressFormat: wantFormat,
 			output:         output.HIDDEN,
 			reportFile:     testFile,
@@ -172,7 +171,7 @@ func Test_results(t *testing.T) {
 func Test_configuredOper_New(t *testing.T) {
 	t.Run("it should return incrementConfigError if increment is true and no args contains 'INC'", func(t *testing.T) {
 		args := []string{"test", "abc"}
-		_, gotErr := New(0, 0, args, true, progress.HIDDEN, "testing", output.HIDDEN, nil, true)
+		_, gotErr := New(0, 0, args, true, output.HIDDEN, "testing", output.HIDDEN, nil, true)
 		if gotErr == nil {
 			t.Fatal("expected to get error, got nil")
 		}
@@ -191,7 +190,7 @@ func Test_configuredOper_New(t *testing.T) {
 
 	t.Run("it should't return an error if increment is true and argument contains 'INC'", func(t *testing.T) {
 		args := []string{"test", "abc", "INC"}
-		_, gotErr := New(0, -1, args, true, progress.HIDDEN, "testing", output.HIDDEN, nil, true)
+		_, gotErr := New(0, -1, args, true, output.HIDDEN, "testing", output.HIDDEN, nil, true)
 		if gotErr != nil {
 			t.Fatalf("expected nil, got: %v", gotErr)
 		}
