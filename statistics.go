@@ -36,7 +36,7 @@ func (s statistics) String() string {
 	tot := time.Duration(0)
 	n := len(s.res)
 	if n == 0 {
-		return "No results were caught, cannot produce statisitcs"
+		return "\nNo results were caught, cannot produce statisitcs"
 	}
 	for _, r := range s.res {
 		tot += r.runtime

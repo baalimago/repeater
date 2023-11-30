@@ -18,8 +18,11 @@ It can probably also be used as a ghetto benchmarking tool.
 # The output of curl will then be printed to the report file
 repeater -n 100 -w 10 -reportFile ./run_output -output REPORT_FILE -progress BOTH curl example.com
 
+# This will panic since the curl will return non 0 exit code, stderr will be written to -output
+repeater -n 100 -w 10 curl wadiwaudbwadiubwada
+
+# This will print "this is increment: 1\nthis is increment: 2\n..."
 repeater -n 100 -increment echo "this is increment: " INC
-# ... will print "this is increment 1\nthis is increment 2\n..."
 
 # Show all avaliable flags 
 repeater -h
