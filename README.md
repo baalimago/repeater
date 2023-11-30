@@ -1,6 +1,5 @@
 # repeater
 A tool which repeats a command n amounts of time.
-Includes progress and error handling.
 
 ![repeatoopher](./img/repeatoopher.jpg)
 
@@ -12,6 +11,7 @@ go install github.com/baalimago/repeater@latest
 ## Usage
 Repeater is designed to perform repetitive tasks with slight modification.
 Personally I've used it to CRUD state in paralell and fill login event logs as fast as I have network sockets.
+It can probably also be used as a ghetto benchmarking tool.
 
 ```bash
 # This command will repeat 'curl example.com' 100 times, using 10 workers and report progress to stdout
