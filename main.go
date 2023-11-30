@@ -21,7 +21,7 @@ var (
 	progressFlag       = flag.String("progress", "STDOUT", "Options are: ['HIDDEN', 'REPORT_FILE', 'STDOUT', 'BOTH']")
 	progressFormatFlag = flag.String("progressFormat", DEFAULT_PROGRESS_FORMAT, "Set the format for the output where first argument is the iteration and second argument is the amount of runs.")
 	outputFlag         = flag.String("output", "STDOUT", "Options are: ['HIDDEN', 'REPORT_FILE', 'STDOUT', 'BOTH']")
-	reportFileFlag     = flag.String("reportFile", "STDOUT", "Path to the file where the report will be saved. Options are: ['STDOUT', '<any file>']")
+	reportFileFlag     = flag.String("reportFile", "", "Path to the file where the report will be saved. File will be overwritten.")
 	statisticsFlag     = flag.Bool("statistics", true, "Set to false if you don't wish to see statistics of the repeated command.")
 	incrementFlag      = flag.Bool("increment", false, "Set to true and add an argument 'INC', to have 'INC' be replaced with the iteration. If increment == true && 'INC' is not set, repeater will panic.")
 )
@@ -38,19 +38,6 @@ func coloredMessage(cc colorCode, msg string) string {
 	return fmt.Sprintf("\x1b[%dm%v\x1b[0m", cc, msg)
 }
 
-// getFile by checking if it exists and querying user about how to treat the file
-func getFile(s string) *os.File {
-	// If it's stdout, it shouldn't create file as report should be written to stdout
-	if s == "STDOUT" {
-		return nil
-	}
-	f, err := os.Create(s)
-	if err != nil {
-		panic(fmt.Sprintf("not good: %v", err))
-	}
-	return f
-}
-
 func main() {
 	flag.Parse()
 
@@ -65,7 +52,7 @@ func main() {
 		}
 		os.Exit(1)
 	}
-	c, err := New(*amRunsFlag, *workersFlag, args, *colorFlag, output.New(progressFlag), *progressFormatFlag, output.New(outputFlag), getFile(*reportFileFlag), *incrementFlag)
+	c, err := New(*amRunsFlag, *workersFlag, args, *colorFlag, output.New(progressFlag), *progressFormatFlag, output.New(outputFlag), *reportFileFlag, *incrementFlag)
 	if err != nil {
 		c.printErr(fmt.Sprintf("configuration error: %v\n", err))
 		os.Exit(1)

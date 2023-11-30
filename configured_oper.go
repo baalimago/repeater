@@ -30,6 +30,15 @@ type configuredOper struct {
 	increment      bool
 }
 
+// getFile by checking if it exists and querying user about how to treat the file
+func getFile(s string) *os.File {
+	f, err := os.Create(s)
+	if err != nil {
+		panic(fmt.Sprintf("not good: %v", err))
+	}
+	return f
+}
+
 type incrementConfigError struct {
 	args []string
 }
@@ -44,13 +53,13 @@ func New(am, workers int,
 	pMode output.Mode,
 	progressFormat string,
 	oMode output.Mode,
-	reportFile *os.File,
+	reportFile string,
 	increment bool,
 ) (configuredOper, error) {
 	shouldHaveReportFile := pMode == output.BOTH || pMode == output.REPORT_FILE ||
 		oMode == output.BOTH || oMode == output.REPORT_FILE
 
-	if shouldHaveReportFile && reportFile == nil {
+	if shouldHaveReportFile && reportFile == "" {
 		return configuredOper{}, fmt.Errorf("progress: %v, or output: %v, requires a report file, but none is specified", pMode, oMode)
 	}
 
@@ -74,7 +83,7 @@ func New(am, workers int,
 		progress:       pMode,
 		progressFormat: progressFormat,
 		output:         oMode,
-		reportFile:     reportFile,
+		reportFile:     getFile(reportFile),
 		reportFileMu:   &sync.Mutex{},
 		increment:      increment,
 	}, nil
