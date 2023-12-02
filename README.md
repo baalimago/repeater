@@ -10,7 +10,7 @@ go install github.com/baalimago/repeater@latest
 
 ## Usage
 Repeater is designed to perform repetitive tasks with slight modification.
-Personally I've used it to CRUD state in paralell and fill login event logs as fast as I have network sockets.
+Personally I've used it to CRUD state in parallel and fill login event logs as fast as I have network sockets.
 It can probably also be used as a ghetto benchmarking tool.
 
 ```bash
@@ -25,9 +25,9 @@ repeater -n 100 -w 10 -reportFile ./run_output -output REPORT_FILE -progress BOT
 repeater -n 100 -w 10 curl wadiwaudbwadiubwada
 
 # This will print "this is increment: 1\nthis is increment: 2\n..."
-repeater -n 100 -increment echo "this is increment: " INC
+repeater -n 100 -increment echo "this is increment: INC"
 
-# Show all avaliable flags 
+# Show all available flags
 repeater -h
 ```
 

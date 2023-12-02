@@ -188,9 +188,17 @@ func Test_configuredOper_New(t *testing.T) {
 		}
 	})
 
-	t.Run("it should't return an error if increment is true and argument contains 'INC'", func(t *testing.T) {
+	t.Run("it should not return an error if increment is true and one argument is 'INC'", func(t *testing.T) {
 		args := []string{"test", "abc", "INC"}
 		_, gotErr := New(0, -1, args, true, output.HIDDEN, "testing", output.HIDDEN, nil, true)
+		if gotErr != nil {
+			t.Fatalf("expected nil, got: %v", gotErr)
+		}
+	})
+
+	t.Run("it should not return an error if increment is true and one argument contains 'INC'", func(t *testing.T) {
+		args := []string{"test", "abc", "another-argument/INC"}
+		_, gotErr := New(0, -1, args, true, output.HIDDEN, "testing", output.HIDDEN, "", true)
 		if gotErr != nil {
 			t.Fatalf("expected nil, got: %v", gotErr)
 		}
