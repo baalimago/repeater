@@ -32,6 +32,9 @@ type configuredOper struct {
 
 // getFile by checking if it exists and querying user about how to treat the file
 func getFile(s string) *os.File {
+  if s == "" {
+    return nil
+  }
 	f, err := os.Create(s)
 	if err != nil {
 		panic(fmt.Sprintf("not good: %v", err))
