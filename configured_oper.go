@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -27,16 +28,45 @@ type configuredOper struct {
 	output         output.Mode
 	reportFile     *os.File
 	reportFileMu   *sync.Mutex
+	reportFileMode string
 	increment      bool
 }
 
-// getFile by checking if it exists and querying user about how to treat the file
-func getFile(s string) *os.File {
-	f, err := os.Create(s)
-	if err != nil {
-		panic(fmt.Sprintf("not good: %v", err))
+type userQuitError string
+
+func (uqe userQuitError) Error() string {
+	return string(uqe)
+}
+
+const UserQuitError userQuitError = "user quit"
+
+// getFile a file. if one already exists, either consult the fileMode string, or query
+// user how the file should be treated
+func (co *configuredOper) getFile(s, fileMode string) (*os.File, error) {
+	if s == "" {
+		return nil, nil
 	}
-	return f
+
+	if _, err := os.Stat(s); !errors.Is(err, os.ErrNotExist) {
+		userResp := fileMode
+		if fileMode == "" {
+			co.printWarn(fmt.Sprintf("file: \"%v\", already exists. Would you like to [t]runcate, [a]ppend or [q]uit? [tT/aA/qQ]: ", s))
+			fmt.Scanln(&userResp)
+		}
+		cleanedUserResp := strings.ToLower(strings.TrimSpace(userResp))
+		co.reportFileMode = cleanedUserResp
+		switch cleanedUserResp {
+		case "t":
+			// NOOP, fallthrough to os.Create below
+		case "a":
+			return os.OpenFile(s, os.O_APPEND|os.O_RDWR, 0644)
+		case "q":
+			return nil, UserQuitError
+		default:
+			return nil, fmt.Errorf("unrecognized reply: \"%v\", valid options are [tT], [aA] or [qQ]", userResp)
+		}
+	}
+	return os.Create(s)
 }
 
 type incrementConfigError struct {
@@ -54,6 +84,7 @@ func New(am, workers int,
 	progressFormat string,
 	oMode output.Mode,
 	reportFile string,
+	reportFileMode string,
 	increment bool,
 ) (configuredOper, error) {
 	shouldHaveReportFile := pMode == output.BOTH || pMode == output.REPORT_FILE ||
@@ -75,7 +106,7 @@ func New(am, workers int,
 		}, fmt.Errorf("please use less workers than repetitions. Am workes: %v, am repetitions: %v", workers, am)
 	}
 
-	return configuredOper{
+	c := configuredOper{
 		am:             am,
 		workers:        workers,
 		color:          color,
@@ -83,10 +114,19 @@ func New(am, workers int,
 		progress:       pMode,
 		progressFormat: progressFormat,
 		output:         oMode,
-		reportFile:     getFile(reportFile),
 		reportFileMu:   &sync.Mutex{},
 		increment:      increment,
-	}, nil
+	}
+
+	file, err := c.getFile(reportFile, reportFileMode)
+	if err != nil {
+		if errors.Is(err, UserQuitError) {
+			return c, err
+		}
+		return c, fmt.Errorf("failed to get file: %v", err)
+	}
+	c.reportFile = file
+	return c, nil
 }
 
 func (c configuredOper) String() string {
@@ -102,7 +142,8 @@ color: %v
 progress: %s
 progress format: %q
 output: %s
-report file: %v`, c.am, c.args, c.increment, c.workers, c.color, c.progress, c.progressFormat, c.output, reportFileName)
+report file: %v
+report file mode: %v`, c.am, c.args, c.increment, c.workers, c.color, c.progress, c.progressFormat, c.output, reportFileName, c.reportFileMode)
 }
 
 func (c configuredOper) printStatus(out io.Writer, status, msg string, color colorCode) {
@@ -118,6 +159,10 @@ func (c configuredOper) printErr(msg string) {
 
 func (c configuredOper) printOK(msg string) {
 	c.printStatus(os.Stdout, "ok", msg, GREEN)
+}
+
+func (c configuredOper) printWarn(msg string) {
+	c.printStatus(os.Stdout, "warning", msg, YELLOW)
 }
 
 func (c configuredOper) setupProgressStreams() []io.Writer {

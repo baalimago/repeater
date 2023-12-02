@@ -171,7 +171,7 @@ func Test_results(t *testing.T) {
 func Test_configuredOper_New(t *testing.T) {
 	t.Run("it should return incrementConfigError if increment is true and no args contains 'INC'", func(t *testing.T) {
 		args := []string{"test", "abc"}
-		_, gotErr := New(0, 0, args, true, output.HIDDEN, "testing", output.HIDDEN, nil, true)
+		_, gotErr := New(0, 0, args, true, output.HIDDEN, "testing", output.HIDDEN, "", "", true)
 		if gotErr == nil {
 			t.Fatal("expected to get error, got nil")
 		}
@@ -190,7 +190,7 @@ func Test_configuredOper_New(t *testing.T) {
 
 	t.Run("it should't return an error if increment is true and argument contains 'INC'", func(t *testing.T) {
 		args := []string{"test", "abc", "INC"}
-		_, gotErr := New(0, -1, args, true, output.HIDDEN, "testing", output.HIDDEN, nil, true)
+		_, gotErr := New(0, -1, args, true, output.HIDDEN, "testing", output.HIDDEN, "", "", true)
 		if gotErr != nil {
 			t.Fatalf("expected nil, got: %v", gotErr)
 		}

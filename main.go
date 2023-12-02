@@ -21,7 +21,8 @@ var (
 	progressFlag       = flag.String("progress", "STDOUT", "Options are: ['HIDDEN', 'REPORT_FILE', 'STDOUT', 'BOTH']")
 	progressFormatFlag = flag.String("progressFormat", DEFAULT_PROGRESS_FORMAT, "Set the format for the output where first argument is the iteration and second argument is the amount of runs.")
 	outputFlag         = flag.String("output", "STDOUT", "Options are: ['HIDDEN', 'REPORT_FILE', 'STDOUT', 'BOTH']")
-	reportFileFlag     = flag.String("reportFile", "", "Path to the file where the report will be saved. File will be overwritten.")
+	reportFileFlag     = flag.String("reportFile", "", "Path to the file where the report will be saved, configure file conflicts automatically with 'reportFileMode'")
+	reportFileModeFlag = flag.String("reportFileMode", "", "Configure how the report file should be treated. If a reportFile exists, and this option isn't set, user will be queried. Options are: ['r'ecreate, 'a'ppend] ")
 	statisticsFlag     = flag.Bool("statistics", true, "Set to false if you don't wish to see statistics of the repeated command.")
 	incrementFlag      = flag.Bool("increment", false, "Set to true and add an argument 'INC', to have 'INC' be replaced with the iteration. If increment == true && 'INC' is not set, repeater will panic.")
 )
@@ -52,7 +53,7 @@ func main() {
 		}
 		os.Exit(1)
 	}
-	c, err := New(*amRunsFlag, *workersFlag, args, *colorFlag, output.New(progressFlag), *progressFormatFlag, output.New(outputFlag), *reportFileFlag, *incrementFlag)
+	c, err := New(*amRunsFlag, *workersFlag, args, *colorFlag, output.New(progressFlag), *progressFormatFlag, output.New(outputFlag), *reportFileFlag, *reportFileModeFlag, *incrementFlag)
 	if err != nil {
 		c.printErr(fmt.Sprintf("configuration error: %v\n", err))
 		os.Exit(1)
