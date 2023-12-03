@@ -100,7 +100,7 @@ func New(am, workers int,
 		}, incrementConfigError{args: args}
 	}
 
-	if workers >= am {
+	if am != 1 && workers >= am {
 		return configuredOper{
 			color: *colorFlag,
 		}, fmt.Errorf("please use less workers than repetitions. Am workes: %v, am repetitions: %v", workers, am)
