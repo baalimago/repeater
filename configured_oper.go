@@ -8,7 +8,7 @@ import (
 	"math"
 	"os"
 	"os/exec"
-	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -17,6 +17,8 @@ import (
 	"github.com/baalimago/repeater/internal/output"
 	"github.com/baalimago/repeater/pkg/filetools"
 )
+
+const incrementPlaceholder = "INC"
 
 type configuredOper struct {
 	am             int
@@ -74,7 +76,7 @@ type incrementConfigError struct {
 }
 
 func (ice incrementConfigError) Error() string {
-	return fmt.Sprintf("increment is true, but args: %v, does not contain string 'INC'", ice.args)
+	return fmt.Sprintf("increment is true, but args: %v, does not contain string '%s'", ice.args, incrementPlaceholder)
 }
 
 func New(am, workers int,
@@ -94,7 +96,7 @@ func New(am, workers int,
 		return configuredOper{}, fmt.Errorf("progress: %v, or output: %v, requires a report file, but none is specified", pMode, oMode)
 	}
 
-	if increment && !slices.Contains(args, "INC") {
+	if increment && !containsIncrementPlaceholder(args) {
 		return configuredOper{
 			color: *colorFlag,
 		}, incrementConfigError{args: args}
@@ -200,8 +202,8 @@ func (c configuredOper) replaceIncrement(args []string, i int) []string {
 	if c.increment {
 		var newArgs []string
 		for _, arg := range args {
-			if arg == "INC" {
-				arg = fmt.Sprintf("%v", i)
+			if strings.Contains(arg, incrementPlaceholder) {
+				arg = strings.ReplaceAll(arg, incrementPlaceholder, strconv.Itoa(i))
 			}
 			newArgs = append(newArgs, arg)
 		}
@@ -314,4 +316,13 @@ WORK_DELEGATOR:
 	ret.totalTime = time.Since(confOperStart)
 
 	return ret
+}
+
+func containsIncrementPlaceholder(args []string) bool {
+	for _, arg := range args {
+		if strings.Contains(arg, incrementPlaceholder) {
+			return true
+		}
+	}
+	return false
 }
