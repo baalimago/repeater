@@ -30,8 +30,8 @@ for ((i = 10; i <= $max_am; i="${i}0")); do
   echo "== am runs: $i"
   printf "repeater (go)"
   time ./repeater -n $i $cmd > /dev/null
-  printf "repeater (go), 9 workers"
-  time ./repeater -n $i -w 9 $cmd > /dev/null
+  printf "repeater (go), 10 workers"
+  time ./repeater -n $i -w 10 $cmd > /dev/null
   printf "repeater (for loop bash)"
   time repeater_for_loop $i $cmd > /dev/null
 done

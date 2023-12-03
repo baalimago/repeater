@@ -203,4 +203,35 @@ func Test_configuredOper_New(t *testing.T) {
 			t.Fatalf("expected nil, got: %v", gotErr)
 		}
 	})
+
+	t.Run("it should return incrementConfigError if the number of workers is greater than the number of times to repeat the command", func(t *testing.T) {
+		am := 1
+		workers := 2
+		args := []string{"test", "abc"}
+		_, gotErr := New(am, workers, args, true, output.HIDDEN, "testing", output.HIDDEN, "", "", false)
+		if gotErr == nil {
+			t.Fatal("expected to get error, got nil")
+		}
+
+		want := fmt.Errorf("please use less workers than repetitions. Am workers: %v, am repetitions: %v", workers, am)
+
+		if gotErr.Error() != want.Error() {
+			t.Fatalf("got: %v, want: %v", gotErr, want)
+		}
+	})
+
+	t.Run("it should not return an error if the number of workers is lower than the number of times to repeat the command", func(t *testing.T) {
+		args := []string{"test", "abc"}
+		_, gotErr := New(2, 1, args, true, output.HIDDEN, "testing", output.HIDDEN, "", "", false)
+		if gotErr != nil {
+			t.Fatalf("expected nil, got: %v", gotErr)
+		}
+	})
+	t.Run("it should not return an error if the number of workers is equal to the number of times to repeat the command", func(t *testing.T) {
+		args := []string{"test", "abc"}
+		_, gotErr := New(2, 2, args, true, output.HIDDEN, "testing", output.HIDDEN, "", "", false)
+		if gotErr != nil {
+			t.Fatalf("expected nil, got: %v", gotErr)
+		}
+	})
 }
