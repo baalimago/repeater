@@ -14,13 +14,16 @@ Personally I've used it to CRUD state in parallel and fill login event logs as f
 It can probably also be used as a ghetto benchmarking tool.
 
 ```bash
-# This command will:
-# * repeat 'curl example.com' 100 times using 10 workers
-# * print output of the curl to the REPORT_FILE, which is './run_output'
-# * print progress to both stdout and the REPORT_FILE 
-# * it will create 'run_output' if it doesn't exist, and consult user on file conflict
-repeater -n 100 -w 10 -reportFile ./run_output -output REPORT_FILE -progress BOTH curl example.com
+repeater \
+    -n 100 `# repeat 100 times` \
+    -w 10 ` # using 10 workers` \
+    -reportFile ./run_output `  # with reportfile ./run_output` \
+    -output REPORT_FILE `       # with command output written to report file` \
+    -progress BOTH `            # with progress written to BOTH stdout and report file` \
+    curl example.com `          # command to repeat`
+```
 
+```bash
 # This will panic since the curl will return non 0 exit code, the command's error file 
 # will be written to -output, which by default is stdout
 repeater -n 100 -w 10 curl wadiwaudbwadiubwada
