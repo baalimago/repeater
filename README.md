@@ -1,5 +1,5 @@
 # repeater
-A tool which repeats a command n amounts of time.
+A tool which repeats a command n amounts of time, with paralellisation and slight tweaks.
 
 ![repeatoopher](./img/repeatoopher.jpg)
 
@@ -9,9 +9,10 @@ go install github.com/baalimago/repeater@latest
 ```
 
 ## Usage
-Repeater is designed to perform repetitive tasks with slight modification.
-Personally I've used it to CRUD state in parallel and fill login event logs as fast as I have network sockets.
-It can probably also be used as a ghetto benchmarking tool.
+Usecases: 
+* CRUD state using curl as fast as you have network sockets
+* Paralellize repetitive shell-scripts
+* Ghetto benchmarking
 
 ```bash
 repeater \
@@ -24,9 +25,10 @@ repeater \
 ```
 
 ```bash
-# This will panic since the curl will return non 0 exit code, the command's error file 
-# will be written to -output, which by default is stdout
-repeater -n 100 -w 10 curl wadiwaudbwadiubwada
+# This will panic 10 times since the curl will return non 0 exit code, once per worker. 
+# The curl stdout and stderr will both be written to `-output`
+# destination, which by default is stdout
+repeater -n 100 -w 10 curl foobar.raboof
 
 # This will print "this is increment: 1\nthis is increment: 2\n..."
 repeater -n 100 -increment echo "this is increment: INC"
