@@ -78,7 +78,7 @@ func main() {
 		if *statisticsFlag {
 			fmt.Printf("== Statistics ==%s\n", stats)
 		}
-		c.printOK("The repeat, had been done. Farewell.\n")
+		c.printOK("The repeat, has been done. Farewell.\n")
 		os.Exit(0)
 	case <-signalChannel:
 	}
