@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/baalimago/go_away_boilerplate/pkg/general"
+	"github.com/baalimago/go_away_boilerplate/pkg/testboil"
 )
 
 func Test_configuredOper_getFile(t *testing.T) {
@@ -129,7 +129,7 @@ func Test_configuredOper_getFile(t *testing.T) {
 				fileName: fmt.Sprintf("%v/someNewFile", t.TempDir()),
 				fileMode: "a",
 				fileGenFunc: func(t *testing.T, _ string) *os.File {
-					f := general.CreateTestFile(t, "someNewFile")
+					f := testboil.CreateTestFile(t, "someNewFile")
 					_, err := f.WriteString("SHOULD_BE_IGNORED")
 					if err != nil {
 						t.Fatalf("failed to write data to file in pre test: %v", err)

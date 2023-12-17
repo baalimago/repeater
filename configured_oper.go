@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/baalimago/go_away_boilerplate/pkg/general"
+	"github.com/baalimago/go_away_boilerplate/pkg/threadsafe"
 	"github.com/baalimago/repeater/internal/output"
 	"github.com/baalimago/repeater/pkg/filetools"
 )
@@ -234,9 +234,9 @@ func (c configuredOper) run(ctx context.Context) statistics {
 	runningWorkersMu := &sync.Mutex{}
 	for i := 0; i < c.workers; i++ {
 		go func(workerID, amTasks int) {
-			general.RaceSafeWrite(runningWorkersMu, general.RaceSafeRead(runningWorkersMu, &runningWorkers)+1, &runningWorkers)
+			threadsafe.Write(runningWorkersMu, threadsafe.Read(runningWorkersMu, &runningWorkers)+1, &runningWorkers)
 			defer func() {
-				general.RaceSafeWrite(runningWorkersMu, general.RaceSafeRead(runningWorkersMu, &runningWorkers)-1, &runningWorkers)
+				threadsafe.Write(runningWorkersMu, threadsafe.Read(runningWorkersMu, &runningWorkers)-1, &runningWorkers)
 			}()
 			for {
 				select {
@@ -302,7 +302,7 @@ WORK_DELEGATOR:
 				filetools.WriteStringIfPossible(fmt.Sprintf(c.progressFormat, i, c.am), progressStreams)
 			}
 
-			if general.RaceSafeRead(runningWorkersMu, &runningWorkers) == 0 && len(resultChan) == 0 {
+			if threadsafe.Read(runningWorkersMu, &runningWorkers) == 0 && len(resultChan) == 0 {
 				break WORK_DELEGATOR
 			}
 		case workChan <- i:

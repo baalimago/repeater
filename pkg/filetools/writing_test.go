@@ -5,13 +5,13 @@ import (
 	"os"
 	"testing"
 
-	"github.com/baalimago/go_away_boilerplate/pkg/general"
+	"github.com/baalimago/go_away_boilerplate/pkg/testboil"
 	"github.com/baalimago/repeater/pkg/filetools"
 )
 
 func Test_WriteStirngIfPossible(t *testing.T) {
 	t.Run("it should write... if.. possible", func(t *testing.T) {
-		goodFile := general.CreateTestFile(t, "testFile")
+		goodFile := testboil.CreateTestFile(t, "testFile")
 		t.Cleanup(func() { goodFile.Close() })
 
 		want := "writethis"

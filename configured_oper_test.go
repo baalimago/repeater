@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/baalimago/go_away_boilerplate/pkg/general"
+	"github.com/baalimago/go_away_boilerplate/pkg/testboil"
 	"github.com/baalimago/repeater/internal/output"
 )
 
@@ -28,7 +28,7 @@ func checkReportFileContent(reportFile string) (string, error) {
 func Test_configuredOper(t *testing.T) {
 	t.Run("it should print to report file when flagged to do so", func(t *testing.T) {
 		runTest := func(outputMode output.Mode, wantOutputString bool) {
-			testFile := general.CreateTestFile(t, "tFile")
+			testFile := testboil.CreateTestFile(t, "tFile")
 			outputString := "test"
 			co := configuredOper{
 				am:         1,
@@ -60,7 +60,7 @@ func Test_configuredOper(t *testing.T) {
 
 	t.Run("it should print progress to report file when flagged to do so", func(t *testing.T) {
 		runTest := func(outputMode output.Mode, wantProgress bool) {
-			testFile := general.CreateTestFile(t, "tFile")
+			testFile := testboil.CreateTestFile(t, "tFile")
 			outputString := "something"
 			progFormat := "%v/%v"
 			co := configuredOper{
@@ -96,7 +96,7 @@ func Test_configuredOper(t *testing.T) {
 
 	t.Run("it should follow format set in progressFormat", func(t *testing.T) {
 		wantFormat := "lol%vtest%v"
-		testFile := general.CreateTestFile(t, "testFile")
+		testFile := testboil.CreateTestFile(t, "testFile")
 		c := configuredOper{
 			am:             1,
 			args:           []string{"true"},
