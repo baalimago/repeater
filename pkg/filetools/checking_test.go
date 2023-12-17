@@ -9,7 +9,6 @@ import (
 )
 
 func Test_CheckAmLines(t *testing.T) {
-
 	t.Run("given 10 lines, it should return 10", func(t *testing.T) {
 		fileWithRows := `0
 1

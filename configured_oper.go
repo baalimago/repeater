@@ -61,7 +61,7 @@ func (co *configuredOper) getFile(s, fileMode string) (*os.File, error) {
 		case "t":
 			// NOOP, fallthrough to os.Create below
 		case "a":
-			return os.OpenFile(s, os.O_APPEND|os.O_RDWR, 0644)
+			return os.OpenFile(s, os.O_APPEND|os.O_RDWR, 0o644)
 		case "q":
 			return nil, UserQuitError
 		default:
