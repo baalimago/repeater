@@ -23,13 +23,8 @@ func (r *result) Write(p []byte) (n int, err error) {
 type statistics struct {
 	max       result
 	min       result
-	avr       time.Duration
 	totalTime time.Duration
 	res       []result
-}
-
-func (s statistics) add(r result) {
-	s.res = append(s.res, r)
 }
 
 func (s statistics) String() string {
