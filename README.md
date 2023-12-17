@@ -21,8 +21,8 @@ It can probably also be used as a ghetto benchmarking tool.
 # * it will create 'run_output' if it doesn't exist, and consult user on file conflict
 repeater -n 100 -w 10 -reportFile ./run_output -output REPORT_FILE -progress BOTH curl example.com
 
-# This will panic since the curl will return non 0 exit code, stderr will be written to -output, which
-# is default: stdout
+# This will panic since the curl will return non 0 exit code, the command's error file 
+# will be written to -output, which by default is stdout
 repeater -n 100 -w 10 curl wadiwaudbwadiubwada
 
 # This will print "this is increment: 1\nthis is increment: 2\n..."
