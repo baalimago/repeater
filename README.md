@@ -25,7 +25,10 @@ repeater \
 ```
 
 ```bash
-# This will panic 10 times since the curl will return non 0 exit code, once per worker. 
+# This curl will exit with non 0 exit code, which will error 10 times,
+# once per worker. When a worker errors, it will commit soduku. 
+# Repeater panics once all workers are dead. 
+#
 # The curl stdout and stderr will both be written to `-output`
 # destination, which by default is stdout
 repeater -n 100 -w 10 curl foobar.raboof
