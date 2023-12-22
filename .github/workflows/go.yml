@@ -66,6 +66,9 @@ jobs:
         sed -i "s/Test coverage: .*/Test coverage: $perc% $rating/" README.md
 
         git add .
+        # I'm not too sure about this one
+        git config --global user.email "actions@github.com"
+        git config --global user.name "Github Actions"
         git commit -m "GithubActions: Updated testcoverage"
         git push
       shell: bash
