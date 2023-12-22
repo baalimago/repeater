@@ -55,6 +55,7 @@ jobs:
 
     - name: Update testcoverage
       uses: actions/checkout@v3
+    - name: Now github will be happy
       run: |
         perc=$(cat ./global_test_coverage)
         perc_rounded=${perc%%.*}
