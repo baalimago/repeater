@@ -1,6 +1,9 @@
-name: Go
+name: Go with testcoverage update in README.md
+
 
 on:
+  workflow_call:
+    # NOOP, just added to make it a reusable workflow
   push:
     branches: [ "main" ]
   pull_request:
@@ -51,13 +54,7 @@ jobs:
           exit 1
         fi
         go install github.com/baalimago/percentaverage@latest
-        cat /tmp/testResult | percentaverage -r > ~/global_test_coverage
-
-    - name: Setup coverage update
-      uses: actions/checkout@v3
-    - name: Update global test-coverage
-      run: |
-        perc=$(cat ~/global_test_coverage)
+        perc=$(cat /tmp/testResult | percentaverage -r)
         perc_rounded=${perc%%.*}
         if [ $perc_rounded -ge 80 ]; then
           rating="😍👌"
