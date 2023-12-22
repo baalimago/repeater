@@ -1,6 +1,3 @@
-# This workflow will build a golang project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
-
 name: Go
 
 on:
@@ -48,6 +45,29 @@ jobs:
       shell: bash
 
     - name: Test 
-      run: go test -v -race ./...
+      run: |
+        if ! go test -v -race -cover ./... > /tmp/testResult; then
+          echo /tmp/testResult
+          exit 1
+        fi
+        go install github.com/baalimago/percentaverage@latest
+        perc=$(cat /tmp/testResult | percentaverage -r)
+        perc_rounded=${perc%%.*}
+        if [ $perc_rounded -ge 80 ]; then
+          rating="😍👌"
+        elif [ $perc_rounded -ge 50 ]; then
+          rating="😌👏"
+        elif [ $perc_rounded -ge 20 ]; then
+          rating="😒👍"
+        else
+          color="😠👎"
+        fi
+
+        sed -i "s/Test coverage: .*/Test coverage: $perc% $rating/" README.md
+
+        git add .
+        git commit -msg "GithubActions: Updated testcoverage"
+        git push
+      shell: bash
 
     
