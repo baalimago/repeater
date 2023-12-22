@@ -66,7 +66,7 @@ jobs:
         sed -i "s/Test coverage: .*/Test coverage: $perc% $rating/" README.md
 
         git add .
-        git commit -msg "GithubActions: Updated testcoverage"
+        git commit -m "GithubActions: Updated testcoverage"
         git push
       shell: bash
 
