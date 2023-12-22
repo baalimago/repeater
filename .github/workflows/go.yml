@@ -51,7 +51,12 @@ jobs:
           exit 1
         fi
         go install github.com/baalimago/percentaverage@latest
-        perc=$(cat /tmp/testResult | percentaverage -r)
+        cat /tmp/testResult | percentaverage -r > ./global_test_coverage
+
+    - name: Update testcoverage
+      uses: actions/checkout@v3
+      run: |
+        perc=$(cat ./global_test_coverage)
         perc_rounded=${perc%%.*}
         if [ $perc_rounded -ge 80 ]; then
           rating="😍👌"
@@ -65,7 +70,7 @@ jobs:
 
         sed -i "s/Test coverage: .*/Test coverage: $perc% $rating/" README.md
 
-        git add .
+        git add README.md
         # I'm not too sure about this one
         git config --global user.email "actions@github.com"
         git config --global user.name "Github Actions"
