@@ -51,13 +51,13 @@ jobs:
           exit 1
         fi
         go install github.com/baalimago/percentaverage@latest
-        cat /tmp/testResult | percentaverage -r > ./global_test_coverage
+        cat /tmp/testResult | percentaverage -r > ~/global_test_coverage
 
-    - name: Update testcoverage
+    - name: Setup coverage update
       uses: actions/checkout@v3
-    - name: Now github will be happy
+    - name: Update global test-coverage
       run: |
-        perc=$(cat ./global_test_coverage)
+        perc=$(cat ~/global_test_coverage)
         perc_rounded=${perc%%.*}
         if [ $perc_rounded -ge 80 ]; then
           rating="😍👌"
