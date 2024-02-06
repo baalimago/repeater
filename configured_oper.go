@@ -42,35 +42,6 @@ func (uqe userQuitError) Error() string {
 
 const UserQuitError userQuitError = "user quit"
 
-// getFile a file. if one already exists, either consult the fileMode string, or query
-// user how the file should be treated
-func (co *configuredOper) getFile(s, fileMode string) (*os.File, error) {
-	if s == "" {
-		return nil, nil
-	}
-
-	if _, err := os.Stat(s); !errors.Is(err, os.ErrNotExist) {
-		userResp := fileMode
-		if fileMode == "" {
-			co.printWarn(fmt.Sprintf("file: \"%v\", already exists. Would you like to [t]runcate, [a]ppend or [q]uit? [tT/aA/qQ]: ", s))
-			fmt.Scanln(&userResp)
-		}
-		cleanedUserResp := strings.ToLower(strings.TrimSpace(userResp))
-		co.reportFileMode = cleanedUserResp
-		switch cleanedUserResp {
-		case "t":
-			// NOOP, fallthrough to os.Create below
-		case "a":
-			return os.OpenFile(s, os.O_APPEND|os.O_RDWR, 0o644)
-		case "q":
-			return nil, UserQuitError
-		default:
-			return nil, fmt.Errorf("unrecognized reply: \"%v\", valid options are [tT], [aA] or [qQ]", userResp)
-		}
-	}
-	return os.Create(s)
-}
-
 type incrementConfigError struct {
 	args []string
 }
@@ -131,7 +102,36 @@ func New(am, workers int,
 	return c, nil
 }
 
-func (c configuredOper) String() string {
+// getFile a file. if one already exists, either consult the fileMode string, or query
+// user how the file should be treated
+func (co *configuredOper) getFile(s, fileMode string) (*os.File, error) {
+	if s == "" {
+		return nil, nil
+	}
+
+	if _, err := os.Stat(s); !errors.Is(err, os.ErrNotExist) {
+		userResp := fileMode
+		if fileMode == "" {
+			co.printWarn(fmt.Sprintf("file: \"%v\", already exists. Would you like to [t]runcate, [a]ppend or [q]uit? [tT/aA/qQ]: ", s))
+			fmt.Scanln(&userResp)
+		}
+		cleanedUserResp := strings.ToLower(strings.TrimSpace(userResp))
+		co.reportFileMode = cleanedUserResp
+		switch cleanedUserResp {
+		case "t":
+			// NOOP, fallthrough to os.Create below
+		case "a":
+			return os.OpenFile(s, os.O_APPEND|os.O_RDWR, 0o644)
+		case "q":
+			return nil, UserQuitError
+		default:
+			return nil, fmt.Errorf("unrecognized reply: \"%v\", valid options are [tT], [aA] or [qQ]", userResp)
+		}
+	}
+	return os.Create(s)
+}
+
+func (c *configuredOper) String() string {
 	reportFileName := "HIDDEN"
 	if c.reportFile != nil {
 		reportFileName = c.reportFile.Name()
@@ -148,26 +148,26 @@ report file: %v
 report file mode: %v`, c.am, c.args, c.increment, c.workers, c.color, c.progress, c.progressFormat, c.output, reportFileName, c.reportFileMode)
 }
 
-func (c configuredOper) printStatus(out io.Writer, status, msg string, color colorCode) {
+func (c *configuredOper) printStatus(out io.Writer, status, msg string, color colorCode) {
 	if c.color {
 		status = coloredMessage(color, status)
 	}
 	fmt.Fprintf(out, "%v: %v", status, msg)
 }
 
-func (c configuredOper) printErr(msg string) {
+func (c *configuredOper) printErr(msg string) {
 	c.printStatus(os.Stderr, "error", msg, RED)
 }
 
-func (c configuredOper) printOK(msg string) {
+func (c *configuredOper) printOK(msg string) {
 	c.printStatus(os.Stdout, "ok", msg, GREEN)
 }
 
-func (c configuredOper) printWarn(msg string) {
+func (c *configuredOper) printWarn(msg string) {
 	c.printStatus(os.Stdout, "warning", msg, YELLOW)
 }
 
-func (c configuredOper) setupProgressStreams() []io.Writer {
+func (c *configuredOper) setupProgressStreams() []io.Writer {
 	progressStreams := make([]io.Writer, 0, 2)
 	switch c.progress {
 	case output.STDOUT:
@@ -198,7 +198,7 @@ func (c *configuredOper) setupOutputStreams(toDo *exec.Cmd, res *result) {
 	}
 }
 
-func (c configuredOper) replaceIncrement(args []string, i int) []string {
+func (c *configuredOper) replaceIncrement(args []string, i int) []string {
 	if c.increment {
 		var newArgs []string
 		for _, arg := range args {
@@ -212,9 +212,46 @@ func (c configuredOper) replaceIncrement(args []string, i int) []string {
 	return args
 }
 
+func (c *configuredOper) doWork(workerID, taskIdx, amTasks int, resultChan chan result, minMaxMu *sync.Mutex, max, min time.Duration, ret *statistics) {
+	res := result{
+		workerID: workerID,
+		idx:      taskIdx,
+	}
+	// Kill the worker here if the sought after amount of repetitions has been performed
+	if taskIdx == amTasks {
+		// Send result here to unbock delegator
+		resultChan <- res
+		return
+	}
+	args := c.replaceIncrement(c.args[1:], taskIdx)
+	do := exec.Command(c.args[0], args...)
+	c.setupOutputStreams(do, &res)
+	t0 := time.Now()
+	err := do.Run()
+	res.runtime = time.Since(t0)
+	minMaxMu.Lock()
+	if res.runtime > max {
+		ret.max = res
+		max = res.runtime
+	}
+	if res.runtime < min {
+		ret.min = res
+		min = res.runtime
+	}
+	minMaxMu.Unlock()
+
+	if err != nil {
+		res.output = fmt.Sprintf("ERROR: %v, check output for more info", err)
+		resultChan <- res
+		return
+	} else {
+		resultChan <- res
+	}
+}
+
 // run the configured command. Blocking operation, errors are handeled internally as the output
 // depends on the configuration
-func (c configuredOper) run(ctx context.Context) statistics {
+func (c *configuredOper) run(ctx context.Context) statistics {
 	progressStreams := c.setupProgressStreams()
 	defer filetools.WriteStringIfPossible("\n", progressStreams)
 
@@ -243,40 +280,7 @@ func (c configuredOper) run(ctx context.Context) statistics {
 				case <-workCtx.Done():
 					return
 				case taskIdx := <-workChan:
-					res := result{
-						workerID: workerID,
-						idx:      taskIdx,
-					}
-					// Kill the worker here if the sought after amount of repetitions has been performed
-					if taskIdx == amTasks {
-						// Send result here to unbock delegator
-						resultChan <- res
-						return
-					}
-					args := c.replaceIncrement(c.args[1:], taskIdx)
-					do := exec.Command(c.args[0], args...)
-					c.setupOutputStreams(do, &res)
-					t0 := time.Now()
-					err := do.Run()
-					res.runtime = time.Since(t0)
-					minMaxMu.Lock()
-					if res.runtime > max {
-						ret.max = res
-						max = res.runtime
-					}
-					if res.runtime < min {
-						ret.min = res
-						min = res.runtime
-					}
-					minMaxMu.Unlock()
-
-					if err != nil {
-						res.output = fmt.Sprintf("ERROR: %v, check output for more info", err)
-						resultChan <- res
-						return
-					} else {
-						resultChan <- res
-					}
+					c.doWork(workerID, taskIdx, amTasks, resultChan, minMaxMu, min, max, &ret)
 				}
 			}
 		}(i, c.am)
