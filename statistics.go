@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math"
+	"sync"
 	"time"
 )
 
@@ -25,6 +26,18 @@ type statistics struct {
 	min       result
 	totalTime time.Duration
 	res       []result
+	mu        *sync.Mutex
+}
+
+func (s *statistics) updateMinMax(r result) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if r.runtime > s.max.runtime {
+		s.max = r
+	}
+	if r.runtime < s.min.runtime {
+		s.min = r
+	}
 }
 
 func (s statistics) String() string {

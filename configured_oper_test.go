@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/baalimago/go_away_boilerplate/pkg/testboil"
@@ -31,12 +32,14 @@ func Test_configuredOper(t *testing.T) {
 			testFile := testboil.CreateTestFile(t, "tFile")
 			outputString := "test"
 			co := configuredOper{
-				am:         1,
-				args:       []string{"printf", fmt.Sprintf("%v", outputString)},
-				color:      false,
-				progress:   output.HIDDEN,
-				output:     outputMode,
-				reportFile: testFile,
+				am:          1,
+				args:        []string{"printf", fmt.Sprintf("%v", outputString)},
+				color:       false,
+				progress:    output.HIDDEN,
+				output:      outputMode,
+				reportFile:  testFile,
+				amResultsMu: &sync.Mutex{},
+				amResults:   0,
 			}
 
 			co.run(context.Background())
@@ -71,6 +74,8 @@ func Test_configuredOper(t *testing.T) {
 				progress:       outputMode,
 				output:         output.HIDDEN,
 				reportFile:     testFile,
+				amResultsMu:    &sync.Mutex{},
+				amResults:      0,
 			}
 
 			co.run(context.Background())
@@ -105,6 +110,8 @@ func Test_configuredOper(t *testing.T) {
 			progressFormat: wantFormat,
 			output:         output.HIDDEN,
 			reportFile:     testFile,
+			amResultsMu:    &sync.Mutex{},
+			amResults:      0,
 		}
 
 		c.run(context.Background())
@@ -171,7 +178,7 @@ func Test_results(t *testing.T) {
 func Test_configuredOper_New(t *testing.T) {
 	t.Run("it should return incrementConfigError if increment is true and no args contains 'INC'", func(t *testing.T) {
 		args := []string{"test", "abc"}
-		_, gotErr := New(0, 0, args, true, output.HIDDEN, "testing", output.HIDDEN, "", "", true)
+		_, gotErr := New(0, 0, args, output.HIDDEN, "testing", output.HIDDEN, "", "", true)
 		if gotErr == nil {
 			t.Fatal("expected to get error, got nil")
 		}
@@ -190,7 +197,7 @@ func Test_configuredOper_New(t *testing.T) {
 
 	t.Run("it should not return an error if increment is true and one argument is 'INC'", func(t *testing.T) {
 		args := []string{"test", "abc", "INC"}
-		_, gotErr := New(0, -1, args, true, output.HIDDEN, "testing", output.HIDDEN, "", "", true)
+		_, gotErr := New(0, -1, args, output.HIDDEN, "testing", output.HIDDEN, "", "", true)
 		if gotErr != nil {
 			t.Fatalf("expected nil, got: %v", gotErr)
 		}
@@ -198,7 +205,7 @@ func Test_configuredOper_New(t *testing.T) {
 
 	t.Run("it should not return an error if increment is true and one argument contains 'INC'", func(t *testing.T) {
 		args := []string{"test", "abc", "another-argument/INC"}
-		_, gotErr := New(0, -1, args, true, output.HIDDEN, "testing", output.HIDDEN, "", "", true)
+		_, gotErr := New(0, -1, args, output.HIDDEN, "testing", output.HIDDEN, "", "", true)
 		if gotErr != nil {
 			t.Fatalf("expected nil, got: %v", gotErr)
 		}
@@ -208,7 +215,7 @@ func Test_configuredOper_New(t *testing.T) {
 		am := 1
 		workers := 2
 		args := []string{"test", "abc"}
-		_, gotErr := New(am, workers, args, true, output.HIDDEN, "testing", output.HIDDEN, "", "", false)
+		_, gotErr := New(am, workers, args, output.HIDDEN, "testing", output.HIDDEN, "", "", false)
 		if gotErr == nil {
 			t.Fatal("expected to get error, got nil")
 		}
@@ -222,14 +229,14 @@ func Test_configuredOper_New(t *testing.T) {
 
 	t.Run("it should not return an error if the number of workers is lower than the number of times to repeat the command", func(t *testing.T) {
 		args := []string{"test", "abc"}
-		_, gotErr := New(2, 1, args, true, output.HIDDEN, "testing", output.HIDDEN, "", "", false)
+		_, gotErr := New(2, 1, args, output.HIDDEN, "testing", output.HIDDEN, "", "", false)
 		if gotErr != nil {
 			t.Fatalf("expected nil, got: %v", gotErr)
 		}
 	})
 	t.Run("it should not return an error if the number of workers is equal to the number of times to repeat the command", func(t *testing.T) {
 		args := []string{"test", "abc"}
-		_, gotErr := New(2, 2, args, true, output.HIDDEN, "testing", output.HIDDEN, "", "", false)
+		_, gotErr := New(2, 2, args, output.HIDDEN, "testing", output.HIDDEN, "", "", false)
 		if gotErr != nil {
 			t.Fatalf("expected nil, got: %v", gotErr)
 		}
