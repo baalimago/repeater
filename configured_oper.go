@@ -1,20 +1,16 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/baalimago/go_away_boilerplate/pkg/threadsafe"
 	"github.com/baalimago/repeater/internal/output"
-	"github.com/baalimago/repeater/pkg/filetools"
 )
 
 const incrementPlaceholder = "INC"
@@ -31,8 +27,8 @@ type configuredOper struct {
 	reportFileMu   *sync.Mutex
 	reportFileMode string
 	increment      bool
-	amResults      int
-	amResultsMu    *sync.Mutex
+	processingTime time.Duration
+	results        []result
 }
 
 type userQuitError string
@@ -84,8 +80,6 @@ func New(am, workers int,
 		output:         oMode,
 		reportFileMu:   &sync.Mutex{},
 		increment:      increment,
-		amResults:      0,
-		amResultsMu:    &sync.Mutex{},
 	}
 
 	file, err := c.getFile(reportFile, reportFileMode)
@@ -145,20 +139,6 @@ report file: %v
 report file mode: %v`, c.am, c.args, c.increment, c.workers, c.color, c.progress, c.progressFormat, c.output, reportFileName, c.reportFileMode)
 }
 
-func (c *configuredOper) setupProgressStreams() []io.Writer {
-	progressStreams := make([]io.Writer, 0, 2)
-	switch c.progress {
-	case output.STDOUT:
-		progressStreams = append(progressStreams, os.Stdout)
-	case output.REPORT_FILE:
-		progressStreams = append(progressStreams, c.reportFile)
-	case output.BOTH:
-		progressStreams = append(progressStreams, os.Stdout)
-		progressStreams = append(progressStreams, c.reportFile)
-	}
-	return progressStreams
-}
-
 func (c *configuredOper) setupOutputStreams(toDo *exec.Cmd, res *result) {
 	switch c.output {
 	case output.STDOUT:
@@ -176,102 +156,18 @@ func (c *configuredOper) setupOutputStreams(toDo *exec.Cmd, res *result) {
 	}
 }
 
-func (c *configuredOper) replaceIncrement(args []string, i int) []string {
-	if c.increment {
-		var newArgs []string
-		for _, arg := range args {
-			if strings.Contains(arg, incrementPlaceholder) {
-				arg = strings.ReplaceAll(arg, incrementPlaceholder, strconv.Itoa(i))
-			}
-			newArgs = append(newArgs, arg)
-		}
-		return newArgs
+func (c *configuredOper) setupProgressStreams() []io.Writer {
+	progressStreams := make([]io.Writer, 0, 2)
+	switch c.progress {
+	case output.STDOUT:
+		progressStreams = append(progressStreams, os.Stdout)
+	case output.REPORT_FILE:
+		progressStreams = append(progressStreams, c.reportFile)
+	case output.BOTH:
+		progressStreams = append(progressStreams, os.Stdout)
+		progressStreams = append(progressStreams, c.reportFile)
 	}
-	return args
-}
-
-func (c *configuredOper) doWork(workerID, taskIdx int) result {
-	res := result{
-		workerID: workerID,
-		idx:      taskIdx,
-	}
-	args := c.replaceIncrement(c.args[1:], taskIdx)
-	do := exec.Command(c.args[0], args...)
-	c.setupOutputStreams(do, &res)
-	t0 := time.Now()
-	err := do.Run()
-	timeSpent := time.Since(t0)
-	res.runtime = timeSpent
-	if err != nil {
-		res.output = fmt.Sprintf("ERROR: %v, check output for more info", err)
-	}
-	return res
-}
-
-// run the configured command. Blocking operation, errors are handeled internally as the output
-// depends on the configuration
-func (c *configuredOper) run(ctx context.Context) statistics {
-	progressStreams := c.setupProgressStreams()
-	defer filetools.WriteStringIfPossible("\n", progressStreams)
-
-	stats := statistics{
-		mu: &sync.Mutex{},
-	}
-
-	workChan := make(chan int)
-	// Buffer the channel for each worker, so that the workers may leave a result and then quit
-	resultChan := make(chan result, c.am)
-	workCtx, workCtxCancel := context.WithCancel(ctx)
-	if c.workers < 1 {
-		c.workers = 1
-	}
-	for i := 0; i < c.workers; i++ {
-		go func(workerID int) {
-			for {
-				select {
-				case <-workCtx.Done():
-					return
-				case taskIdx := <-workChan:
-					res := c.doWork(workerID, taskIdx)
-					resultChan <- res
-					stats.updateMinMax(res)
-				}
-			}
-		}(i)
-	}
-
-	confOperStart := time.Now()
-	i := 0
-WORK_DELEGATOR:
-	for {
-		if ctx.Err() != nil {
-			printErr(fmt.Sprintf("context error: %v", ctx.Err()))
-			os.Exit(1)
-		}
-		select {
-		case res := <-resultChan:
-			threadsafe.Write(c.amResultsMu, threadsafe.Read(c.amResultsMu, &c.amResults)+1, &c.amResults)
-			if strings.Contains(res.output, "ERROR:") {
-				printErr(fmt.Sprintf("worker: %v received %v\n", res.workerID, res.output))
-			} else {
-				stats.res = append(stats.res, res)
-				filetools.WriteStringIfPossible(fmt.Sprintf(c.progressFormat, i, c.am), progressStreams)
-			}
-
-			if threadsafe.Read(c.amResultsMu, &c.amResults) == c.am {
-				break WORK_DELEGATOR
-			}
-		case workChan <- i:
-			if i == c.am {
-				continue
-			}
-			i++
-		}
-	}
-	workCtxCancel()
-	stats.totalTime = time.Since(confOperStart)
-
-	return stats
+	return progressStreams
 }
 
 func containsIncrementPlaceholder(args []string) bool {

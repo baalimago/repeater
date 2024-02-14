@@ -37,14 +37,15 @@ func main() {
 		os.Exit(1)
 	}
 	c, err := New(*amRunsFlag, *workersFlag, args, output.New(progressFlag), *progressFormatFlag, output.New(outputFlag), *reportFileFlag, *reportFileModeFlag, *incrementFlag)
+
+	if *verboseFlag {
+		fmt.Printf("Operation:\n%v\n------\n", &c)
+	}
 	if err != nil {
 		printErr(fmt.Sprintf("configuration error: %v\n", err))
 		os.Exit(1)
 	}
 
-	if *verboseFlag {
-		fmt.Printf("%v\n", c)
-	}
 	ctx, ctxCancel := context.WithCancel(context.Background())
 	isDone := make(chan statistics)
 	go func() {
@@ -59,7 +60,7 @@ func main() {
 	select {
 	case stats := <-isDone:
 		if *statisticsFlag {
-			fmt.Printf("== Statistics ==%s\n", stats)
+			fmt.Printf("== Statistics ==%s\n", &stats)
 		}
 		printOK("The repeat, has been done. Farewell.\n")
 		os.Exit(0)

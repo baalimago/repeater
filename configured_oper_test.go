@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/baalimago/go_away_boilerplate/pkg/testboil"
@@ -32,14 +31,12 @@ func Test_configuredOper(t *testing.T) {
 			testFile := testboil.CreateTestFile(t, "tFile")
 			outputString := "test"
 			co := configuredOper{
-				am:          1,
-				args:        []string{"printf", fmt.Sprintf("%v", outputString)},
-				color:       false,
-				progress:    output.HIDDEN,
-				output:      outputMode,
-				reportFile:  testFile,
-				amResultsMu: &sync.Mutex{},
-				amResults:   0,
+				am:         1,
+				args:       []string{"printf", fmt.Sprintf("%v", outputString)},
+				color:      false,
+				progress:   output.HIDDEN,
+				output:     outputMode,
+				reportFile: testFile,
 			}
 
 			co.run(context.Background())
@@ -74,8 +71,6 @@ func Test_configuredOper(t *testing.T) {
 				progress:       outputMode,
 				output:         output.HIDDEN,
 				reportFile:     testFile,
-				amResultsMu:    &sync.Mutex{},
-				amResults:      0,
 			}
 
 			co.run(context.Background())
@@ -110,8 +105,6 @@ func Test_configuredOper(t *testing.T) {
 			progressFormat: wantFormat,
 			output:         output.HIDDEN,
 			reportFile:     testFile,
-			amResultsMu:    &sync.Mutex{},
-			amResults:      0,
 		}
 
 		c.run(context.Background())
@@ -137,13 +130,13 @@ func Test_results(t *testing.T) {
 			args: []string{"printf", want},
 		}
 
-		results := c.run(context.Background())
-		gotLen := len(results.res)
+		c.run(context.Background())
+		gotLen := len(c.results)
 		if gotLen != 1 {
 			t.Fatalf("expected: 1, got: %v", gotLen)
 		}
 
-		got := results.res[0].output
+		got := c.results[0].output
 		if got != want {
 			t.Fatalf("expected: %v, got: %v", want, got)
 		}
@@ -156,16 +149,15 @@ func Test_results(t *testing.T) {
 			// Date is most likely to exist in most OS's running this test
 			args: []string{"date"},
 		}
-		results := c.run(context.Background())
-		res := results.res
-		gotLen := len(results.res)
+		c.run(context.Background())
+		gotLen := len(c.results)
 		// ensure that the correc amount is output
 		if gotLen != wantAm {
 			t.Fatalf("expected: %v, got: %v", wantAm, gotLen)
 		}
 
 		uniqueSet := make(map[string]struct{})
-		for _, k := range res {
+		for _, k := range c.results {
 			_, exists := uniqueSet[k.output]
 			// Ensure that the output isn't copied for each one
 			if exists {
