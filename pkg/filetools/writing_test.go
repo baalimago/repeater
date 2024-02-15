@@ -1,6 +1,7 @@
 package filetools_test
 
 import (
+	"errors"
 	"io"
 	"os"
 	"testing"
@@ -8,6 +9,12 @@ import (
 	"github.com/baalimago/go_away_boilerplate/pkg/testboil"
 	"github.com/baalimago/repeater/pkg/filetools"
 )
+
+type errorWriter struct{}
+
+func (ew errorWriter) Write(p []byte) (n int, err error) {
+	return 0, errors.New("here i go erroring again!")
+}
 
 func Test_WriteStirngIfPossible(t *testing.T) {
 	t.Run("it should write... if.. possible", func(t *testing.T) {
@@ -35,4 +42,14 @@ func Test_WriteStirngIfPossible(t *testing.T) {
 			t.Fatalf("expected: %v, got: %s", want, got)
 		}
 	})
+
+	t.Run("it should error if not possible", func(t *testing.T) {
+		want := "writethis"
+		_, got := filetools.WriteStringIfPossible(want, []io.Writer{&errorWriter{}})
+		var wrErr filetools.WriteError
+		if !errors.As(got, &wrErr) {
+			t.Fatal("expected WriteError, got nil")
+		}
+	})
+
 }
