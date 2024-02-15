@@ -20,9 +20,9 @@ Usecases:
 repeater \
     -n 100 `# repeat 100 times` \
     -w 10 ` # using 10 workers` \
-    -reportFile ./run_output `  # with reportfile ./run_output` \
-    -output REPORT_FILE `       # with command output written to report file` \
-    -progress BOTH `            # with progress written to BOTH stdout and report file` \
+    -file ./run_output `  # with file ./run_output` \
+    -output FILE `       # with command output written to some file` \
+    -progress BOTH `            # with progress written to BOTH stdout and some file` \
     curl example.com `          # command to repeat`
 ```
 

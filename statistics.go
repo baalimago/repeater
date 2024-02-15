@@ -6,26 +6,29 @@ import (
 	"time"
 )
 
-type result struct {
-	workerID int
-	idx      int
-	runtime  time.Duration
-	output   string
-	isError  bool
+type Result struct {
+	WorkerID             int           `json:"workerID"`
+	Idx                  int           `json:"taskIdx"`
+	Runtime              time.Duration `json:"runtime"`
+	RuntimeHumanReadable string        `json:"runtimeHumanReadable"`
+	Output               string        `json:"output"`
+	IsError              bool          `json:"isError"`
 }
 
 type statistics struct {
-	max     result
-	min     result
+	max     Result
+	min     Result
 	total   time.Duration
+	runtime time.Duration
 	average time.Duration
 	stdDev  time.Duration
+	Results []Result `json:"results"`
 }
 
 // Write implements io.Writer to get the output of the command for
 // both out and err
-func (r *result) Write(p []byte) (n int, err error) {
-	r.output += string(p)
+func (r *Result) Write(p []byte) (n int, err error) {
+	r.Output += string(p)
 	return len(p), nil
 }
 
@@ -34,40 +37,45 @@ func (c *configuredOper) calcStats() statistics {
 	n := len(c.results)
 	minDur := time.Duration(9223372036854775807)
 	maxDur := time.Duration(-9223372036854775808)
-	var min, max result
+	var min, max Result
 	for _, r := range c.results {
-		if r.runtime < minDur {
+		if r.Runtime < minDur {
 			min = r
-			minDur = r.runtime
+			minDur = r.Runtime
 		}
-		if r.runtime > maxDur {
+		if r.Runtime > maxDur {
 			max = r
-			maxDur = r.runtime
+			maxDur = r.Runtime
 		}
-		tot += r.runtime
+		tot += r.Runtime
 	}
 
 	avr := int64(tot) / int64(n)
 	varSum := 0.0
 	for _, x := range c.results {
-		varSum += math.Pow((float64(x.runtime) - float64(avr)), 2.0)
+		varSum += math.Pow((float64(x.Runtime) - float64(avr)), 2.0)
 	}
 	variance := varSum / float64(n)
 	stdDeviation := time.Duration(int64(math.Sqrt(variance)))
 	return statistics{
+		runtime: c.runtime,
 		min:     min,
 		max:     max,
 		total:   tot,
 		average: time.Duration(avr),
 		stdDev:  stdDeviation,
+		Results: c.results,
 	}
 }
 
 func (s *statistics) String() string {
 	return fmt.Sprintf(`
-Total time: %v, Average time per task: %v, Std deviation: %v
+Runtime: %s, Total routine work time: %v,
+Average time per task: %v, Std deviation: %v
 Max time, index: %v, time: %v
-Min time, index: %v, time: %v`, s.total, s.average, s.stdDev,
-		s.max.idx, s.max.runtime,
-		s.min.idx, s.min.runtime)
+Min time, index: %v, time: %v`,
+		s.runtime, s.total,
+		s.average, s.stdDev,
+		s.max.Idx, s.max.Runtime,
+		s.min.Idx, s.min.Runtime)
 }

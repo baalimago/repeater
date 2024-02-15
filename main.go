@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"os/signal"
+	"slices"
 	"syscall"
 
 	"github.com/baalimago/repeater/internal/output"
@@ -18,13 +20,14 @@ var (
 	verboseFlag        = flag.Bool("v", false, "Set to display the configured operation before running")
 	workersFlag        = flag.Int("w", 1, "Set the amout of workers to repeat the command with. Having more than 1 makes execution paralell. Expect performance diminishing returns when approaching CPU threads.")
 	colorFlag          = flag.Bool("nocolor", false, "Set to true to disable ansi-colored output")
-	progressFlag       = flag.String("progress", "STDOUT", "Options are: ['HIDDEN', 'REPORT_FILE', 'STDOUT', 'BOTH']")
+	progressFlag       = flag.String("progress", "STDOUT", "Options are: ['HIDDEN', 'FILE', 'STDOUT', 'BOTH']")
 	progressFormatFlag = flag.String("progressFormat", DEFAULT_PROGRESS_FORMAT, "Set the format for the output where first argument is the iteration and second argument is the amount of runs.")
-	outputFlag         = flag.String("output", "HIDDEN", "Options are: ['HIDDEN', 'REPORT_FILE', 'STDOUT', 'BOTH']")
-	reportFileFlag     = flag.String("reportFile", "", "Path to the file where the report will be saved, configure file conflicts automatically with 'reportFileMode'")
-	reportFileModeFlag = flag.String("reportFileMode", "", "Configure how the report file should be treated. If a reportFile exists, and this option isn't set, user will be queried. Options are: ['r'ecreate, 'a'ppend] ")
-	statisticsFlag     = flag.Bool("statistics", true, "Set to false if you don't wish to see statistics of the repeated command.")
+	outputFlag         = flag.String("output", "HIDDEN", "Options are: ['HIDDEN', 'FILE', 'STDOUT', 'BOTH']")
+	fileFlag           = flag.String("f", "", "Path to the file where the report will be saved, configure file conflicts automatically with 'fileMode'")
+	fileModeFlag       = flag.String("fileMode", "", "Configure how the report file should be treated. If a file exists, and this option isn't set, user will be queried. Options are: ['t'runcate, 'a'ppend] ")
+	statisticsFlag     = flag.Bool("statistics", true, "Set to true if you don't wish to see statistics of the repeated command.")
 	incrementFlag      = flag.Bool("increment", false, "Set to true and add an argument 'INC', to have 'INC' be replaced with the iteration. If increment == true && 'INC' is not set, repeater will panic.")
+	resultFlag         = flag.String("result", "", "Set this to some filename and get a json-formated output of all the performed tasks. This output is the basis of the statistics.")
 )
 
 func main() {
@@ -36,7 +39,7 @@ func main() {
 		printErr(fmt.Sprintf("error: %v", "you need to supply at least 1 argument\n"))
 		os.Exit(1)
 	}
-	c, err := New(*amRunsFlag, *workersFlag, args, output.New(progressFlag), *progressFormatFlag, output.New(outputFlag), *reportFileFlag, *reportFileModeFlag, *incrementFlag)
+	c, err := New(*amRunsFlag, *workersFlag, args, output.New(progressFlag), *progressFormatFlag, output.New(outputFlag), *fileFlag, *fileModeFlag, *incrementFlag, *resultFlag)
 
 	if *verboseFlag {
 		fmt.Printf("Operation:\n%v\n------\n", &c)
@@ -62,6 +65,19 @@ func main() {
 		if *statisticsFlag {
 			fmt.Printf("== Statistics ==%s\n", &stats)
 		}
+
+		if c.resultFile != nil {
+			slices.SortFunc(stats.Results, func(a, b Result) int {
+				return int(a.Runtime) - int(b.Runtime)
+			})
+			bytes, err := json.Marshal(stats.Results)
+			if err != nil {
+				printErr(fmt.Sprintf("failed to marshal results: %v", err))
+			} else {
+				printOK(fmt.Sprintf("printing results to file: %v\n", c.resultFile.Name()))
+				fmt.Fprintf(c.resultFile, "%v", string(bytes))
+			}
+		}
 		printOK("The repeat, has been done. Farewell.\n")
 		os.Exit(0)
 	case <-signalChannel:
@@ -75,4 +91,5 @@ func main() {
 	case <-signalChannel:
 		printErr("aborting graceful shutdown")
 	}
+
 }

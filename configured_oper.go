@@ -23,12 +23,13 @@ type configuredOper struct {
 	progress       output.Mode
 	progressFormat string
 	output         output.Mode
-	reportFile     *os.File
-	reportFileMu   *sync.Mutex
-	reportFileMode string
+	outputFile     *os.File
+	outputFileMu   *sync.Mutex
+	outputFileMode string
 	increment      bool
-	processingTime time.Duration
-	results        []result
+	runtime        time.Duration
+	results        []Result
+	resultFile     *os.File
 }
 
 type userQuitError string
@@ -55,12 +56,13 @@ func New(am, workers int,
 	reportFile string,
 	reportFileMode string,
 	increment bool,
+	resultFlag string,
 ) (configuredOper, error) {
-	shouldHaveReportFile := pMode == output.BOTH || pMode == output.REPORT_FILE ||
-		oMode == output.BOTH || oMode == output.REPORT_FILE
+	shouldHaveReportFile := pMode == output.BOTH || pMode == output.FILE ||
+		oMode == output.BOTH || oMode == output.FILE
 
 	if shouldHaveReportFile && reportFile == "" {
-		return configuredOper{}, fmt.Errorf("progress mode '%v', or output mode '%v', requires a report file but none is set. Use flag --reportFile <file_name>", pMode, oMode)
+		return configuredOper{}, fmt.Errorf("progress mode '%v', or output mode '%v', requires a report file but none is set. Use flag --file <file_name>", pMode, oMode)
 	}
 
 	if increment && !containsIncrementPlaceholder(args) {
@@ -78,7 +80,7 @@ func New(am, workers int,
 		progress:       pMode,
 		progressFormat: progressFormat,
 		output:         oMode,
-		reportFileMu:   &sync.Mutex{},
+		outputFileMu:   &sync.Mutex{},
 		increment:      increment,
 	}
 
@@ -87,9 +89,18 @@ func New(am, workers int,
 		if errors.Is(err, UserQuitError) {
 			return c, err
 		}
-		return c, fmt.Errorf("failed to get file: %v", err)
+		return c, fmt.Errorf("failed to get file: %w", err)
 	}
-	c.reportFile = file
+	c.outputFile = file
+
+	file, err = c.getFile(resultFlag, "")
+	if err != nil {
+		if errors.Is(err, UserQuitError) {
+			return c, err
+		}
+		return c, fmt.Errorf("failed to get file: %w", err)
+	}
+	c.resultFile = file
 	return c, nil
 }
 
@@ -107,7 +118,7 @@ func (c *configuredOper) getFile(s, fileMode string) (*os.File, error) {
 			fmt.Scanln(&userResp)
 		}
 		cleanedUserResp := strings.ToLower(strings.TrimSpace(userResp))
-		c.reportFileMode = cleanedUserResp
+		c.outputFileMode = cleanedUserResp
 		switch cleanedUserResp {
 		case "t":
 			// NOOP, fallthrough to os.Create below
@@ -124,8 +135,8 @@ func (c *configuredOper) getFile(s, fileMode string) (*os.File, error) {
 
 func (c *configuredOper) String() string {
 	reportFileName := "HIDDEN"
-	if c.reportFile != nil {
-		reportFileName = c.reportFile.Name()
+	if c.outputFile != nil {
+		reportFileName = c.outputFile.Name()
 	}
 	return fmt.Sprintf(`am: %v
 command: %v
@@ -136,10 +147,10 @@ progress: %s
 progress format: %q
 output: %s
 report file: %v
-report file mode: %v`, c.am, c.args, c.increment, c.workers, c.color, c.progress, c.progressFormat, c.output, reportFileName, c.reportFileMode)
+report file mode: %v`, c.am, c.args, c.increment, c.workers, c.color, c.progress, c.progressFormat, c.output, reportFileName, c.outputFileMode)
 }
 
-func (c *configuredOper) setupOutputStreams(toDo *exec.Cmd, res *result) {
+func (c *configuredOper) setupOutputStreams(toDo *exec.Cmd, res *Result) {
 	switch c.output {
 	case output.STDOUT:
 		toDo.Stdout = io.MultiWriter(os.Stdout, res)
@@ -147,12 +158,12 @@ func (c *configuredOper) setupOutputStreams(toDo *exec.Cmd, res *result) {
 	case output.HIDDEN:
 		toDo.Stdout = res
 		toDo.Stderr = res
-	case output.REPORT_FILE:
-		toDo.Stdout = io.MultiWriter(c.reportFile, res)
-		toDo.Stderr = io.MultiWriter(c.reportFile, res)
+	case output.FILE:
+		toDo.Stdout = io.MultiWriter(c.outputFile, res)
+		toDo.Stderr = io.MultiWriter(c.outputFile, res)
 	case output.BOTH:
-		toDo.Stdout = io.MultiWriter(c.reportFile, os.Stdout, res)
-		toDo.Stderr = io.MultiWriter(c.reportFile, os.Stderr, res)
+		toDo.Stdout = io.MultiWriter(c.outputFile, os.Stdout, res)
+		toDo.Stderr = io.MultiWriter(c.outputFile, os.Stderr, res)
 	}
 }
 
@@ -161,11 +172,11 @@ func (c *configuredOper) setupProgressStreams() []io.Writer {
 	switch c.progress {
 	case output.STDOUT:
 		progressStreams = append(progressStreams, os.Stdout)
-	case output.REPORT_FILE:
-		progressStreams = append(progressStreams, c.reportFile)
+	case output.FILE:
+		progressStreams = append(progressStreams, c.outputFile)
 	case output.BOTH:
 		progressStreams = append(progressStreams, os.Stdout)
-		progressStreams = append(progressStreams, c.reportFile)
+		progressStreams = append(progressStreams, c.outputFile)
 	}
 	return progressStreams
 }
