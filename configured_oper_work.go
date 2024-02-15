@@ -39,7 +39,7 @@ func (c *configuredOper) doWork(workerID, taskIdx int) Result {
 	err := do.Run()
 	timeSpent := time.Since(t0)
 	res.Runtime = timeSpent
-	res.RuntimeHumanReadable = fmt.Sprintf("%s", timeSpent)
+	res.RuntimeHumanReadable = timeSpent.String()
 	if err != nil {
 		res.Output = err.Error()
 		res.IsError = true
