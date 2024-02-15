@@ -51,5 +51,4 @@ func Test_WriteStirngIfPossible(t *testing.T) {
 			t.Fatal("expected WriteError, got nil")
 		}
 	})
-
 }
