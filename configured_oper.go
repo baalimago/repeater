@@ -53,15 +53,15 @@ func New(am, workers int,
 	pMode output.Mode,
 	progressFormat string,
 	oMode output.Mode,
-	reportFile string,
-	reportFileMode string,
+	outputFile string,
+	outputFileMode string,
 	increment bool,
 	resultFlag string,
 ) (configuredOper, error) {
 	shouldHaveReportFile := pMode == output.BOTH || pMode == output.FILE ||
 		oMode == output.BOTH || oMode == output.FILE
 
-	if shouldHaveReportFile && reportFile == "" {
+	if shouldHaveReportFile && outputFile == "" {
 		return configuredOper{}, fmt.Errorf("progress mode '%v', or output mode '%v', requires a report file but none is set. Use flag --file <file_name>", pMode, oMode)
 	}
 
@@ -84,7 +84,7 @@ func New(am, workers int,
 		increment:      increment,
 	}
 
-	file, err := c.getFile(reportFile, reportFileMode)
+	file, err := c.getFile(outputFile, outputFileMode)
 	if err != nil {
 		if errors.Is(err, UserQuitError) {
 			return c, err
