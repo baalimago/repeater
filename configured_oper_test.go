@@ -81,7 +81,7 @@ func Test_configuredOper(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to get report file: %v", err)
 			}
-			wantStr := fmt.Sprintf("%v\n", fmt.Sprintf(progFormat, 1, 1))
+			wantStr := fmt.Sprintf("%v\n", fmt.Sprintf(progFormat, 0, 1))
 			if got != wantStr && wantProgress {
 				t.Fatalf("for: %s, expected: %v, got: %v", outputMode, wantStr, got)
 			} else if got == wantStr && !wantProgress {
@@ -114,7 +114,7 @@ func Test_configuredOper(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to get report file: %v", err)
 		}
-		want := fmt.Sprintf("%v\n", fmt.Sprintf(wantFormat, 1, 1))
+		want := fmt.Sprintf("%v\n", fmt.Sprintf(wantFormat, 0, 1))
 		if got != want {
 			t.Fatalf("expected: %v, got: %v", want, got)
 		}
