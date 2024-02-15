@@ -23,7 +23,7 @@ var (
 	progressFlag       = flag.String("progress", "STDOUT", "Options are: ['HIDDEN', 'FILE', 'STDOUT', 'BOTH']")
 	progressFormatFlag = flag.String("progressFormat", DEFAULT_PROGRESS_FORMAT, "Set the format for the output where first argument is the iteration and second argument is the amount of runs.")
 	outputFlag         = flag.String("output", "HIDDEN", "Options are: ['HIDDEN', 'FILE', 'STDOUT', 'BOTH']")
-	fileFlag           = flag.String("f", "", "Path to the file where the report will be saved, configure file conflicts automatically with 'fileMode'")
+	fileFlag           = flag.String("file", "", "Path to the file where the report will be saved, configure file conflicts automatically with 'fileMode'")
 	fileModeFlag       = flag.String("fileMode", "", "Configure how the report file should be treated. If a file exists, and this option isn't set, user will be queried. Options are: ['t'runcate, 'a'ppend] ")
 	statisticsFlag     = flag.Bool("statistics", true, "Set to true if you don't wish to see statistics of the repeated command.")
 	incrementFlag      = flag.Bool("increment", false, "Set to true and add an argument 'INC', to have 'INC' be replaced with the iteration. If increment == true && 'INC' is not set, repeater will panic.")
