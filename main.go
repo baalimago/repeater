@@ -91,5 +91,4 @@ func main() {
 	case <-signalChannel:
 		printErr("aborting graceful shutdown")
 	}
-
 }
