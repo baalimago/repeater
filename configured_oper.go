@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"strings"
 	"sync"
 	"time"
@@ -150,20 +149,15 @@ report file: %v
 report file mode: %v`, c.am, c.args, c.increment, c.workers, c.color, c.progress, c.progressFormat, c.output, reportFileName, c.outputFileMode)
 }
 
-func (c *configuredOper) setupOutputStreams(toDo *exec.Cmd, res *Result) {
+func (c *configuredOper) writeOutput(res *Result) {
 	switch c.output {
 	case output.STDOUT:
-		toDo.Stdout = io.MultiWriter(os.Stdout, res)
-		toDo.Stderr = io.MultiWriter(os.Stderr, res)
-	case output.HIDDEN:
-		toDo.Stdout = res
-		toDo.Stderr = res
+		fmt.Fprintf(os.Stdout, "%v", res.Output)
 	case output.FILE:
-		toDo.Stdout = io.MultiWriter(c.outputFile, res)
-		toDo.Stderr = io.MultiWriter(c.outputFile, res)
+		fmt.Fprintf(c.outputFile, "%v", res.Output)
 	case output.BOTH:
-		toDo.Stdout = io.MultiWriter(c.outputFile, os.Stdout, res)
-		toDo.Stderr = io.MultiWriter(c.outputFile, os.Stderr, res)
+		fmt.Fprintf(os.Stdout, "%v", res.Output)
+		fmt.Fprintf(c.outputFile, "%v", res.Output)
 	}
 }
 

@@ -34,7 +34,8 @@ func (c *configuredOper) doWork(workerID, taskIdx int) Result {
 	}
 	args := c.replaceIncrement(c.args[1:], taskIdx)
 	do := exec.Command(c.args[0], args...)
-	c.setupOutputStreams(do, &res)
+	do.Stdout = &res
+	do.Stderr = &res
 	t0 := time.Now()
 	err := do.Run()
 	timeSpent := time.Since(t0)
@@ -79,17 +80,15 @@ WORK_DELEGATOR:
 				printErr(fmt.Sprintf("worker: %v received %v\n", res.WorkerID, res.Output))
 			} else {
 				// This is threadsafe snce only the delegator adds results
+				c.writeOutput(&res)
 				c.results = append(c.results, res)
-				filetools.WriteStringIfPossible(fmt.Sprintf(c.progressFormat, i, c.am), progressStreams)
+				filetools.WriteStringIfPossible(fmt.Sprintf(c.progressFormat, res.Idx, c.am), progressStreams)
 			}
 
 			if len(c.results) == c.am {
 				break WORK_DELEGATOR
 			}
 		case workChan <- i:
-			if i == c.am {
-				continue
-			}
 			i++
 		}
 	}
