@@ -11,10 +11,6 @@ if [ -z "$max_am" ]; then
   max_am=10000
 fi
 
-if [ -z "$cmd" ]; then
-  cmd="ls"
-fi
-
 function repeater_for_loop() {
   local n=$1
   shift
@@ -24,29 +20,49 @@ function repeater_for_loop() {
   done
 }
 
-printf "=== Benchmark start. Cmd: $cmd ===
-
-Within each run segmented with '== am runs: <run-am>'
-different technologies will repeat the command.
-
-You can set a custom command to benchmark by passing in any argument."
 shift
 cmd="$@"
+
+if [ -z "$cmd" ]; then
+  cmd="ls"
+fi
+
+printf "=== Benchmark start. Am runs: $max_am, Cmd: '$cmd' ==="
 echo
 for ((i = 10; i <= $max_am; i="${i}0")); do
   echo "--------
 == am runs: $i"
-  printf "bash for loop"
-  time repeater_for_loop $i $cmd 
-  printf "repeater 10 workers"
-  time ./repeater -n $i -statistics=false -file="r_out_${i}" -output=FILE -w 10 $cmd  > /dev/null
+  # Uncomment if you want it to be a slow comparison of synchronous loop
+  # printf "bash for loop"
+  # time repeater_for_loop $i $cmd 
+  printf "repeater $i workers"
+  time ./repeater -n $i -statistics=false -file="r_out_${i}" -output=FILE -w $i $cmd  > /dev/null
+  printf -v rep_cmd '%*s' "$i"
+  rep_cmd=$(printf '%s' "${rep_cmd// /${cmd}"\n"}")
   if command -v parallel &> /dev/null; then
-    printf "gnu parallel"
-    time seq -w 0 $(( i - 1)) | parallel -n0 $cmd > ./p_out_${i}
+    printf "gnu parallel $i processes"
+    time printf "$rep_cmd" | parallel -I {} -P $i /bin/sh -c "{}" > ./p_out_${i}
     # Diff to ensure output is the same = same operations have been done
-    diff ./r_out_${i} ./p_out_${i}
+    diff_check=$(diff ./r_out_${i} ./p_out_${i})
     rm ./p_out_${i}
+    if [ -n "$diff_check" ]; then
+      printf "found diffs between output, aborting benchmark. Diffs:\n$diff_check"
+      rm ./r_out_${i} 
+      exit 1
+    fi
   fi
+  if command -v xargs &> /dev/null; then
+    printf "xargs $i processes"
+    time printf "$rep_cmd" | xargs -I {} -P $i /bin/sh -c "{}" > ./s_out_${i}
+    diff_check=$(diff ./r_out_${i} ./s_out_${i})
+    rm ./s_out_${i}
+    if [ -n "$diff_check" ]; then
+      printf "found diffs between output, aborting benchmark. Diffs:\n$diff_check"
+      rm ./r_out_${i} 
+      exit 1
+    fi
+  fi
+
   rm ./r_out_${i} 
 done
 
