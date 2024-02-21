@@ -41,7 +41,7 @@ for ((i = 10; i <= $max_am; i="${i}0")); do
   printf "repeater 10 workers"
   time ./repeater -n $i -statistics=false -file="r_out_${i}" -output=FILE -w 10 $cmd  > /dev/null
   if command -v parallel &> /dev/null; then
-    printf "gnu parallel with 10 parallel jobs"
+    printf "gnu parallel"
     time seq -w 0 $(( i - 1)) | parallel -n0 $cmd > ./p_out_${i}
     # Diff to ensure output is the same = same operations have been done
     diff ./r_out_${i} ./p_out_${i}
