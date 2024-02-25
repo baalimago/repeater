@@ -58,7 +58,6 @@ for ((i = 10; i <= $max_am; i="${i}0")); do
   printf -v rep_cmd '%*s' "$i"
   rep_cmd=$(printf '%s' "${rep_cmd// /${cmd}"\n"}")
 
-  # GNU Pallel
   run_xargs_parallel "parallel" "$rep_cmd" 
   run_xargs_parallel "xargs" "$rep_cmd"
   
