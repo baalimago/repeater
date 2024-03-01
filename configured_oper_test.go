@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/baalimago/go_away_boilerplate/pkg/testboil"
@@ -37,7 +38,10 @@ func Test_configuredOper(t *testing.T) {
 				progress:   output.HIDDEN,
 				output:     outputMode,
 				outputFile: testFile,
+				workPlanMu: &sync.Mutex{},
+				workerWg:   &sync.WaitGroup{},
 			}
+			co.workerWg.Add(1)
 
 			co.run(context.Background())
 			testFileName := testFile.Name()
@@ -71,7 +75,10 @@ func Test_configuredOper(t *testing.T) {
 				progress:       outputMode,
 				output:         output.HIDDEN,
 				outputFile:     testFile,
+				workPlanMu:     &sync.Mutex{},
+				workerWg:       &sync.WaitGroup{},
 			}
+			co.workerWg.Add(1)
 
 			co.run(context.Background())
 			testFileName := testFile.Name()
@@ -105,7 +112,10 @@ func Test_configuredOper(t *testing.T) {
 			progressFormat: wantFormat,
 			output:         output.HIDDEN,
 			outputFile:     testFile,
+			workPlanMu:     &sync.Mutex{},
+			workerWg:       &sync.WaitGroup{},
 		}
+		c.workerWg.Add(1)
 
 		c.run(context.Background())
 		testFileName := testFile.Name()
@@ -126,9 +136,12 @@ func Test_results(t *testing.T) {
 		// This should ouput "test"
 		want := "test"
 		c := configuredOper{
-			am:   1,
-			args: []string{"printf", want},
+			am:         1,
+			args:       []string{"printf", want},
+			workPlanMu: &sync.Mutex{},
+			workerWg:   &sync.WaitGroup{},
 		}
+		c.workerWg.Add(1)
 
 		c.run(context.Background())
 		gotLen := len(c.results)
@@ -147,8 +160,11 @@ func Test_results(t *testing.T) {
 		c := configuredOper{
 			am: wantAm,
 			// Date is most likely to exist in most OS's running this test
-			args: []string{"date"},
+			args:       []string{"date"},
+			workerWg:   &sync.WaitGroup{},
+			workPlanMu: &sync.Mutex{},
 		}
+		c.workerWg.Add(1)
 		c.run(context.Background())
 		gotLen := len(c.results)
 		// ensure that the correc amount is output
@@ -189,7 +205,7 @@ func Test_configuredOper_New(t *testing.T) {
 
 	t.Run("it should not return an error if increment is true and one argument is 'INC'", func(t *testing.T) {
 		args := []string{"test", "abc", "INC"}
-		_, gotErr := New(0, -1, args, output.HIDDEN, "testing", output.HIDDEN, "", "", true, "")
+		_, gotErr := New(0, 0, args, output.HIDDEN, "testing", output.HIDDEN, "", "", true, "")
 		if gotErr != nil {
 			t.Fatalf("expected nil, got: %v", gotErr)
 		}
@@ -197,7 +213,7 @@ func Test_configuredOper_New(t *testing.T) {
 
 	t.Run("it should not return an error if increment is true and one argument contains 'INC'", func(t *testing.T) {
 		args := []string{"test", "abc", "another-argument/INC"}
-		_, gotErr := New(0, -1, args, output.HIDDEN, "testing", output.HIDDEN, "", "", true, "")
+		_, gotErr := New(0, 0, args, output.HIDDEN, "testing", output.HIDDEN, "", "", true, "")
 		if gotErr != nil {
 			t.Fatalf("expected nil, got: %v", gotErr)
 		}

@@ -13,7 +13,7 @@ import (
 	"github.com/baalimago/repeater/internal/output"
 )
 
-const DEFAULT_PROGRESS_FORMAT = "\rProgress: (%v/%v)"
+const DEFAULT_PROGRESS_FORMAT = "\rProgress: (Success/Fail/Requested Am)(%v/%v/%v)"
 
 var (
 	amRunsFlag         = flag.Int("n", 1, "Amount of times you wish to repeat the command.")
@@ -63,7 +63,7 @@ func main() {
 	select {
 	case stats := <-isDone:
 		if *statisticsFlag {
-			fmt.Printf("== Statistics ==%s\n", &stats)
+			fmt.Printf("%s\n", &stats)
 		}
 
 		if c.resultFile != nil {

@@ -29,6 +29,10 @@ type configuredOper struct {
 	runtime        time.Duration
 	results        []Result
 	resultFile     *os.File
+	workerWg       *sync.WaitGroup
+	amIdleWorkers  int
+	amSuccess      int
+	workPlanMu     *sync.Mutex
 }
 
 type userQuitError string
@@ -81,7 +85,13 @@ func New(am, workers int,
 		output:         oMode,
 		outputFileMu:   &sync.Mutex{},
 		increment:      increment,
+		amSuccess:      0,
+		workerWg:       &sync.WaitGroup{},
+		amIdleWorkers:  workers,
+		workPlanMu:     &sync.Mutex{},
 	}
+
+	c.workerWg.Add(workers)
 
 	file, err := c.getFile(outputFile, outputFileMode)
 	if err != nil {

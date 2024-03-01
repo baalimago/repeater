@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/baalimago/go_away_boilerplate/pkg/threadsafe"
 	"github.com/baalimago/repeater/pkg/filetools"
 )
 
@@ -55,9 +55,29 @@ func (c *configuredOper) setupWorkers(workCtx context.Context, workChan chan int
 			for {
 				select {
 				case <-workCtx.Done():
+					c.workerWg.Done()
 					return
 				case taskIdx := <-workChan:
+					c.workPlanMu.Lock()
+					workingWorkrs := c.workers - c.amIdleWorkers
+					requestedTasks := c.am
+					// The current amount of workers is enough to reach the requested
+					// amount of tasks in parallel so kill off this worker to not overshoot
+					// the amount of repetitions
+					if workingWorkrs+c.amSuccess >= requestedTasks {
+						c.workerWg.Done()
+						c.workPlanMu.Unlock()
+						return
+					}
+					c.amIdleWorkers--
+					c.workPlanMu.Unlock()
 					res := c.doWork(workerID, taskIdx)
+					c.workPlanMu.Lock()
+					c.amIdleWorkers++
+					if !res.IsError {
+						c.amSuccess++
+					}
+					c.workPlanMu.Unlock()
 					resultChan <- res
 				}
 			}
@@ -65,41 +85,78 @@ func (c *configuredOper) setupWorkers(workCtx context.Context, workChan chan int
 	}
 }
 
-// runDelegator in a blocking manner, will append data to stats
-func (c *configuredOper) runDelegator(ctx context.Context, resultChan chan Result, workChan chan int, progressStreams []io.Writer) {
+func (c *configuredOper) runDelegator(ctx context.Context, workChan chan int) error {
 	i := 0
-WORK_DELEGATOR:
 	for {
 		if ctx.Err() != nil {
-			printErr(fmt.Sprintf("context error: %v", ctx.Err()))
-			os.Exit(1)
+			return nil
 		}
 		select {
-		case res := <-resultChan:
-			if strings.Contains(res.Output, "ERROR:") {
-				printErr(fmt.Sprintf("worker: %v received %v\n", res.WorkerID, res.Output))
-			} else {
-				// This is threadsafe snce only the delegator adds results
-				c.writeOutput(&res)
-				c.results = append(c.results, res)
-				filetools.WriteStringIfPossible(fmt.Sprintf(c.progressFormat, res.Idx, c.am), progressStreams)
-			}
-
-			if len(c.results) == c.am {
-				break WORK_DELEGATOR
-			}
+		case <-ctx.Done():
+			return nil
 		case workChan <- i:
-			i++
+			amSuccess := threadsafe.Read(c.workPlanMu, &c.amSuccess)
+			if amSuccess >= c.am {
+				return nil
+			} else {
+				i++
+			}
+		}
+	}
+}
+
+func (c *configuredOper) runResultCollector(ctx context.Context, resultChan chan Result, progressStreams []io.Writer) {
+	handleRes := func(res Result) int {
+		c.writeOutput(&res)
+		c.results = append(c.results, res)
+		amFails := 0
+		for _, r := range c.results {
+			if r.IsError {
+				amFails++
+			}
+		}
+		amSuccess := len(c.results) - amFails
+		filetools.WriteStringIfPossible(fmt.Sprintf(c.progressFormat, amSuccess, amFails, c.am), progressStreams)
+		return amSuccess
+	}
+
+	emptyResChan := func() {
+		for {
+			select {
+			case res := <-resultChan:
+				handleRes(res)
+			default:
+				return
+			}
+		}
+	}
+	for {
+		if ctx.Err() != nil {
+			emptyResChan()
+			return
+		}
+		select {
+		case <-ctx.Done():
+			emptyResChan()
+			return
+		case res := <-resultChan:
+			amSuccess := handleRes(res)
+			c.workPlanMu.Lock()
+			// Escape condition so that all results are collected
+			if amSuccess >= c.am && c.amIdleWorkers == c.workers {
+				c.workPlanMu.Unlock()
+				return
+			}
+			c.workPlanMu.Unlock()
 		}
 	}
 }
 
 // run the configured command. Blocking operation, errors are handeled internally as the output
 // depends on the configuration
-func (c *configuredOper) run(ctx context.Context) statistics {
+func (c *configuredOper) run(rootCtx context.Context) statistics {
+	ctx, ctxCancel := context.WithCancel(rootCtx)
 	progressStreams := c.setupProgressStreams()
-	defer filetools.WriteStringIfPossible("\n", progressStreams)
-
 	workChan := make(chan int)
 	// Buffer the channel for each worker, so that the workers may leave a result and then quit
 	resultChan := make(chan Result, c.am)
@@ -109,9 +166,21 @@ func (c *configuredOper) run(ctx context.Context) statistics {
 	}
 	c.setupWorkers(workCtx, workChan, resultChan)
 
+	go func() {
+		c.workerWg.Wait()
+		ctxCancel()
+	}()
 	confOperStart := time.Now()
-	c.runDelegator(ctx, resultChan, workChan, progressStreams)
-	workCtxCancel()
+	go func() {
+		err := c.runDelegator(ctx, workChan)
+		if err != nil {
+			printErr(fmt.Sprintf("work delegator error: %v", err))
+			ctxCancel()
+		} else {
+			workCtxCancel()
+		}
+	}()
+	c.runResultCollector(ctx, resultChan, progressStreams)
 	c.runtime = time.Since(confOperStart)
 
 	return c.calcStats()

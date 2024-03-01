@@ -16,6 +16,8 @@ type Result struct {
 }
 
 type statistics struct {
+	am      int
+	amFails int
 	max     Result
 	min     Result
 	total   time.Duration
@@ -35,10 +37,18 @@ func (r *Result) Write(p []byte) (n int, err error) {
 func (c *configuredOper) calcStats() statistics {
 	tot := time.Duration(0)
 	n := len(c.results)
+	if n == 0 {
+		return statistics{}
+	}
 	minDur := time.Duration(9223372036854775807)
 	maxDur := time.Duration(-9223372036854775808)
+	amFails := 0
 	var min, max Result
 	for _, r := range c.results {
+		if r.IsError {
+			amFails++
+			continue
+		}
 		if r.Runtime < minDur {
 			min = r
 			minDur = r.Runtime
@@ -58,6 +68,8 @@ func (c *configuredOper) calcStats() statistics {
 	variance := varSum / float64(n)
 	stdDeviation := time.Duration(int64(math.Sqrt(variance)))
 	return statistics{
+		am:      c.am,
+		amFails: amFails,
 		runtime: c.runtime,
 		min:     min,
 		max:     max,
@@ -70,10 +82,14 @@ func (c *configuredOper) calcStats() statistics {
 
 func (s *statistics) String() string {
 	return fmt.Sprintf(`
-Runtime: %s, Total routine work time: %v,
-Average time per task: %v, Std deviation: %v
-Max time, index: %v, time: %v
-Min time, index: %v, time: %v`,
+== Statistics ==
+Amount of repitions: %v, amount of failures: %v,
+The following is calculated on successful attempts:
+  Runtime: %s, Total routine work time: %v,
+  Average time per task: %v, Std deviation: %v
+  Max time, index: %v, time: %v
+  Min time, index: %v, time: %v`,
+		s.am, s.amFails,
 		s.runtime, s.total,
 		s.average, s.stdDev,
 		s.max.Idx, s.max.Runtime,
