@@ -11,7 +11,7 @@ go install github.com/baalimago/repeater@latest
 ```
 
 ## Usage
-Since v1.2, repeater will re-attempt the command until successful.
+Since v1.2.1, repeater will re-attempt the command until successful.
 A success is a command returning exit code 0.
 Set flag `-retryOnFail=false` if you simply wish to repeat the CMD `-n` amount of times, regardless of outcome.
 
@@ -24,9 +24,10 @@ Usecases:
 repeater \
     -n 100 `# repeat 100 times` \
     -w 10 ` # using 10 workers` \
-    -file ./run_output `        # with file ./run_output` \
-    -output FILE `              # with command output written to some file` \
-    -progress BOTH `            # with progress written to BOTH stdout and some file` \
+    -output FILE `              # with command output written to FILE` \
+    -progress BOTH `            # with progress written to BOTH STDOUT and FILE` \
+    -file ./run_output `        # with FILE ./run_output` \
+    -result ./run_result `      # with result (output + time taken) for each command` \
     curl example.com `          # command to repeat`
 ```
 
