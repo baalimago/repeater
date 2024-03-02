@@ -11,6 +11,10 @@ go install github.com/baalimago/repeater@latest
 ```
 
 ## Usage
+Since v1.2, repeater will re-attempt the command until successful.
+A success is a command returning exit code 0.
+Set flag `-retryOnFail=false` if you simply wish to repeat the CMD `-n` amount of times, regardless of outcome.
+
 Usecases: 
 * CRUD state using curl as fast as you have network sockets
 * Paralellize repetitive shell-scripts
@@ -34,8 +38,7 @@ repeater -n 100 -output STDOUT -progress HIDDEN -increment echo "this is increme
 repeater -h
 ```
 
-## Roadmap
-- [x] Synchronous executions with output to stdout (mimc a bash for loop)
-- [x] Progress on multiline, and singleline
-- [x] Parallelized execution
-- [x] Execution reports when done
+## Benchmarks
+
+Run `./benchmark.sh` to try out repeaters performance vs similar parallelization tools.
+You may benchmark any command that you want, simply run `benchmark <YOUR COMMAND>`.
