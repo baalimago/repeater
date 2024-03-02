@@ -43,5 +43,7 @@ repeater -h
 `repeater` outperforms many other parallizers, including GNU parallel and xargs. 
 
 Run `./benchmark.sh` to try out repeaters performance vs similar parallelization tools.
-You may benchmark any command that you want, simply run `./benchmark.sh <YOUR COMMAND>`.
+You may benchmark any command that you want, simply run `./benchmark.sh <MAX RUNS> <YOUR COMMAND>`.
+It will run the command with `repeater`, `parallel` and `xargs` and print the time taken for each by starting to repeat the command 10 times then 100, 1000, etc up until `<MAX_RUNS>`.
+Note that `./benchmark.sh` will break if it detects and diffs in the output of the commands, so ensure the commands output is deterministic.
 
