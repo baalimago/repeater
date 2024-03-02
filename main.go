@@ -28,6 +28,7 @@ var (
 	statisticsFlag     = flag.Bool("statistics", true, "Set to true if you don't wish to see statistics of the repeated command.")
 	incrementFlag      = flag.Bool("increment", false, "Set to true and add an argument 'INC', to have 'INC' be replaced with the iteration. If increment == true && 'INC' is not set, repeater will panic.")
 	resultFlag         = flag.String("result", "", "Set this to some filename and get a json-formated output of all the performed tasks. This output is the basis of the statistics.")
+	retryOnFailFlag    = flag.Bool("retryOnFail", false, "Set to true to retry failed commands, effectively making repeate run until all commands are successful.")
 )
 
 func main() {
@@ -39,7 +40,17 @@ func main() {
 		printErr(fmt.Sprintf("error: %v", "you need to supply at least 1 argument\n"))
 		os.Exit(1)
 	}
-	c, err := New(*amRunsFlag, *workersFlag, args, output.New(progressFlag), *progressFormatFlag, output.New(outputFlag), *fileFlag, *fileModeFlag, *incrementFlag, *resultFlag)
+	c, err := New(
+		*amRunsFlag,
+		*workersFlag,
+		args, output.New(progressFlag),
+		*progressFormatFlag,
+		output.New(outputFlag),
+		*fileFlag,
+		*fileModeFlag,
+		*incrementFlag,
+		*resultFlag,
+		*retryOnFailFlag)
 
 	if *verboseFlag {
 		fmt.Printf("Operation:\n%v\n------\n", &c)

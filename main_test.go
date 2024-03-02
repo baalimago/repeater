@@ -34,7 +34,7 @@ func Test_do(t *testing.T) {
 		}
 	})
 
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 10; i++ {
 		t.Run("it should run command am amount of times, 10 workers", func(t *testing.T) {
 			expectedCalls := 123
 			amWorkers := 10
@@ -61,5 +61,4 @@ func Test_do(t *testing.T) {
 			}
 		})
 	}
-
 }

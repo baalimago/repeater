@@ -33,6 +33,7 @@ type configuredOper struct {
 	amIdleWorkers  int
 	amSuccess      int
 	workPlanMu     *sync.Mutex
+	retryOnFail    bool
 }
 
 type userQuitError string
@@ -60,6 +61,7 @@ func New(am, workers int,
 	outputFileMode string,
 	increment bool,
 	resultFlag string,
+	retryOnFail bool,
 ) (configuredOper, error) {
 	shouldHaveReportFile := pMode == output.BOTH || pMode == output.FILE ||
 		oMode == output.BOTH || oMode == output.FILE
@@ -89,6 +91,7 @@ func New(am, workers int,
 		workerWg:       &sync.WaitGroup{},
 		amIdleWorkers:  workers,
 		workPlanMu:     &sync.Mutex{},
+		retryOnFail:    retryOnFail,
 	}
 
 	c.workerWg.Add(workers)

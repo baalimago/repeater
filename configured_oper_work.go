@@ -64,7 +64,7 @@ func (c *configuredOper) setupWorkers(workCtx context.Context, workChan chan int
 					// The current amount of workers is enough to reach the requested
 					// amount of tasks in parallel so kill off this worker to not overshoot
 					// the amount of repetitions
-					if workingWorkrs+c.amSuccess >= requestedTasks {
+					if workingWorkrs+c.amSuccess >= requestedTasks || (!c.retryOnFail && taskIdx >= requestedTasks) {
 						c.workerWg.Done()
 						c.workPlanMu.Unlock()
 						return
@@ -121,13 +121,9 @@ func (c *configuredOper) runResultCollector(ctx context.Context, resultChan chan
 	}
 
 	emptyResChan := func() {
-		for {
-			select {
-			case res := <-resultChan:
-				handleRes(res)
-			default:
-				return
-			}
+		for len(resultChan) > 0 {
+			res := <-resultChan
+			handleRes(res)
 		}
 	}
 	for {
