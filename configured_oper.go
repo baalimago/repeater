@@ -18,7 +18,6 @@ type configuredOper struct {
 	am             int
 	workers        int
 	args           []string
-	color          bool
 	progress       output.Mode
 	progressFormat string
 	output         output.Mode
@@ -154,12 +153,11 @@ func (c *configuredOper) String() string {
 command: %v
 increment: %v
 workers: %v
-color: %v
 progress: %s
 progress format: %q
 output: %s
 report file: %v
-report file mode: %v`, c.am, c.args, c.increment, c.workers, c.color, c.progress, c.progressFormat, c.output, reportFileName, c.outputFileMode)
+report file mode: %v`, c.am, c.args, c.increment, c.workers, c.progress, c.progressFormat, c.output, reportFileName, c.outputFileMode)
 }
 
 func (c *configuredOper) writeOutput(res *Result) {

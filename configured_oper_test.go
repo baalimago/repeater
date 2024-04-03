@@ -35,7 +35,6 @@ func Test_configuredOper(t *testing.T) {
 			co := configuredOper{
 				am:            1,
 				args:          []string{"printf", fmt.Sprintf("%v", outputString)},
-				color:         false,
 				progress:      output.HIDDEN,
 				output:        outputMode,
 				outputFile:    testFile,
@@ -72,7 +71,6 @@ func Test_configuredOper(t *testing.T) {
 			co := configuredOper{
 				am:             1,
 				args:           []string{"printf", fmt.Sprintf("%v", outputString)},
-				color:          false,
 				progressFormat: progFormat,
 				progress:       outputMode,
 				amIdleWorkers:  1,
@@ -110,7 +108,6 @@ func Test_configuredOper(t *testing.T) {
 		c := configuredOper{
 			am:             1,
 			args:           []string{"true"},
-			color:          false,
 			amIdleWorkers:  1,
 			progress:       output.FILE,
 			progressFormat: wantFormat,
