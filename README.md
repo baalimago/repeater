@@ -10,6 +10,11 @@ Test coverage: 59.600% 😌👏
 go install github.com/baalimago/repeater@latest
 ```
 
+You may also use the setup script:
+```bash
+curl -fsSL https://raw.githubusercontent.com/baalimago/repeater/main/setup.sh | sh
+```
+
 ## Usage
 Since v1.2.1, repeater will re-attempt the command until successful.
 A success is a command returning exit code 0.
