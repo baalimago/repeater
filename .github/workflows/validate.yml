@@ -10,4 +10,4 @@ on:
 
 jobs:
   call-workflow:
-    uses: baalimago/simple-go-pipeline/.github/workflows/go.yml@main
+    uses: baalimago/simple-go-pipeline/.github/workflows/validate.yml@main
