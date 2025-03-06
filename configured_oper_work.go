@@ -42,7 +42,7 @@ func (c *configuredOper) doWork(workerID, taskIdx int) Result {
 	res.Runtime = timeSpent
 	res.RuntimeHumanReadable = timeSpent.String()
 	if err != nil {
-		res.Output = err.Error()
+		res.Output = err.Error() + res.Output
 		res.IsError = true
 	}
 	return res
