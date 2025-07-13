@@ -105,7 +105,20 @@ func (c *configuredOper) runDelegator(ctx context.Context, workChan chan int) er
 	}
 }
 
+func (c *configuredOper) getTimeStrings(startedAt time.Time, amComplete int) (doneIn time.Duration, doneAt time.Time) {
+	tot := len(c.results)
+	amSuccess := tot - amComplete
+	if amSuccess == 0 {
+		return
+	}
+	avgPerSuccess := time.Since(startedAt) / time.Duration(amSuccess)
+	doneAt = startedAt.Add(avgPerSuccess * time.Duration(c.am-amSuccess))
+	doneIn = time.Until(doneAt)
+	return
+}
+
 func (c *configuredOper) runResultCollector(ctx context.Context, resultChan chan Result, progressStreams []io.Writer) {
+	t0 := time.Now()
 	handleRes := func(res Result) int {
 		c.writeOutput(&res)
 		c.results = append(c.results, res)
@@ -115,8 +128,15 @@ func (c *configuredOper) runResultCollector(ctx context.Context, resultChan chan
 				amFails++
 			}
 		}
-		amSuccess := len(c.results) - amFails
-		filetools.WriteStringIfPossible(fmt.Sprintf(c.progressFormat, amSuccess, amFails, c.am), progressStreams)
+
+		tot := len(c.results)
+		amSuccess := tot - amFails
+		timeLeft, estCompletion := c.getTimeStrings(t0, amSuccess)
+		filetools.WriteStringIfPossible(
+			fmt.Sprintf(c.progressFormat,
+				amSuccess, amFails, c.am,
+				t0.Format(time.RFC3339), timeLeft.Seconds(), estCompletion.Format(time.RFC3339)),
+			progressStreams)
 		return amSuccess
 	}
 

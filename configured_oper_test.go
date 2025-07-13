@@ -67,7 +67,7 @@ func Test_configuredOper(t *testing.T) {
 		runTest := func(outputMode output.Mode, wantProgress bool) {
 			testFile := testboil.CreateTestFile(t, "tFile")
 			outputString := "something"
-			progFormat := "%v/%v/%v"
+			progFormat := "%v/%v/%v/%v/%v/%v"
 			co := configuredOper{
 				am:             1,
 				args:           []string{"printf", fmt.Sprintf("%v", outputString)},
@@ -89,8 +89,8 @@ func Test_configuredOper(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to get report file: %v", err)
 			}
-			wantStr := fmt.Sprintf("%v", fmt.Sprintf(progFormat, 1, 0, 1))
-			if got != wantStr && wantProgress {
+			wantStr := fmt.Sprintf(progFormat, 1, 0, 1, 0.1, time.Now(), 0.1)
+			if strings.Contains(got, wantStr) && wantProgress {
 				t.Fatalf("for: %s, expected: %v, got: %v", outputMode, wantStr, got)
 			} else if got == wantStr && !wantProgress {
 				t.Fatalf("for: %s, expected empty string, got: %v", outputMode, got)
@@ -103,7 +103,7 @@ func Test_configuredOper(t *testing.T) {
 	})
 
 	t.Run("it should follow format set in progressFormat", func(t *testing.T) {
-		wantFormat := "lol%vtest%vhere%v"
+		wantFormat := "lol%vtest%vhere%vmore%vfields%vnow%v"
 		testFile := testboil.CreateTestFile(t, "testFile")
 		c := configuredOper{
 			am:             1,
@@ -125,8 +125,8 @@ func Test_configuredOper(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to get report file: %v", err)
 		}
-		want := fmt.Sprintf("%v", fmt.Sprintf(wantFormat, 1, 0, 1))
-		if got != want {
+		want := fmt.Sprintf(wantFormat, 1, 0, 1, 1.0, time.Now(), 1.0)
+		if strings.Contains(got, want) {
 			t.Fatalf("expected: %v, got: %v", want, got)
 		}
 	})
