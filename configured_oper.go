@@ -15,24 +15,27 @@ import (
 const incrementPlaceholder = "INC"
 
 type configuredOper struct {
-	am             int
-	workers        int
-	args           []string
-	progress       output.Mode
-	progressFormat string
-	output         output.Mode
-	outputFile     *os.File
-	outputFileMu   *sync.Mutex
-	outputFileMode string
-	increment      bool
-	runtime        time.Duration
-	results        []Result
-	resultFile     *os.File
-	workerWg       *sync.WaitGroup
-	amIdleWorkers  int
-	amSuccess      int
-	workPlanMu     *sync.Mutex
-	retryOnFail    bool
+	am                    int
+	workers               int
+	args                  []string
+	progress              output.Mode
+	progressFormat        string
+	output                output.Mode
+	outputFile            *os.File
+	outputFileMu          *sync.Mutex
+	outputFileMode        string
+	increment             bool
+	runtime               time.Duration
+	results               []Result
+	resultFile            *os.File
+	workerWg              *sync.WaitGroup
+	amIdleWorkers         int
+	amSuccess             int
+	workPlanMu            *sync.Mutex
+	retryOnFail           bool
+	startedAt             time.Time
+	rollingAverageRuntime time.Duration
+	totalRuntime          time.Duration
 }
 
 type userQuitError string

@@ -105,20 +105,24 @@ func (c *configuredOper) runDelegator(ctx context.Context, workChan chan int) er
 	}
 }
 
-func (c *configuredOper) getTimeStrings(startedAt time.Time, amComplete int) (doneIn time.Duration, doneAt time.Time) {
-	tot := len(c.results)
-	amSuccess := tot - amComplete
-	if amSuccess == 0 {
-		return
+func (c *configuredOper) getTimeStrings(amSuccess int) (doneIn time.Duration, doneAt time.Time) {
+	amResults := len(c.results)
+	tasksLeft := c.am - amResults
+	// If we retry on fail, calculate the failure rate and multiply the remaining tasks with
+	// failure rate to estimate how many attempts it will take to complete all
+	if c.retryOnFail {
+		tasksLeft = c.am - (amResults - amSuccess)
+		successRate := 1 - (float32(amSuccess) / float32(amResults))
+		tasksLeft = int((float32(tasksLeft) / successRate))
 	}
-	avgPerSuccess := time.Since(startedAt) / time.Duration(amSuccess)
-	doneAt = startedAt.Add(avgPerSuccess * time.Duration(c.am-amSuccess))
-	doneIn = time.Until(doneAt)
+	doneIn = c.rollingAverageRuntime * time.Duration(tasksLeft)
+	// fmt.Printf("avg runtime time: %v, est tasks left: %v", c.rollingAverageRuntime, tasksLeft)
+	doneAt = c.startedAt.Add(doneIn)
 	return
 }
 
 func (c *configuredOper) runResultCollector(ctx context.Context, resultChan chan Result, progressStreams []io.Writer) {
-	t0 := time.Now()
+	c.startedAt = time.Now()
 	handleRes := func(res Result) int {
 		c.writeOutput(&res)
 		c.results = append(c.results, res)
@@ -128,14 +132,16 @@ func (c *configuredOper) runResultCollector(ctx context.Context, resultChan chan
 				amFails++
 			}
 		}
-
 		tot := len(c.results)
+		c.totalRuntime += res.Runtime
+		runtimeAsFloat := float64(c.totalRuntime)
+		c.rollingAverageRuntime = time.Duration(runtimeAsFloat / float64(tot))
 		amSuccess := tot - amFails
-		timeLeft, estCompletion := c.getTimeStrings(t0, amSuccess)
+		timeLeft, estCompletion := c.getTimeStrings(amSuccess)
 		filetools.WriteStringIfPossible(
 			fmt.Sprintf(c.progressFormat,
 				amSuccess, amFails, c.am,
-				t0.Format(time.RFC3339), timeLeft.Seconds(), estCompletion.Format(time.RFC3339)),
+				c.startedAt.Format(time.RFC3339), timeLeft.Seconds(), estCompletion.Format(time.RFC3339)),
 			progressStreams)
 		return amSuccess
 	}
