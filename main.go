@@ -95,6 +95,13 @@ func main() {
 	}
 	ctxCancel()
 	select {
+	case stats := <-isDone:
+		if *statisticsFlag {
+			fmt.Printf("%s\n", &stats)
+		}
+		printOK("graceful shutdown complete")
+	case <-signalChannel:
+		printErr("aborting graceful shutdown")
 	case <-isDone:
 		if ctx.Err() != nil {
 			printOK("graceful shutdown complete")
