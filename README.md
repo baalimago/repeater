@@ -1,7 +1,7 @@
 # repeater
 A tool which repeats a command n amounts of time, with paralellisation and slight tweaks.
 
-Test coverage: 60.880% 😌👏
+Test coverage: 60.800% 😌👏
 
 ![repeatoopher](./img/repeatoopher.jpg)
 
