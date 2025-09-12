@@ -2,7 +2,7 @@
 
 A tool which repeats a command n amounts of time, with paralellisation and slight tweaks.
 
-Test coverage: 60.480% 😌👏
+Test coverage: 59.680% 😌👏
 
 ![repeatoopher](./img/repeatoopher.jpg)
 
