@@ -9,7 +9,9 @@ import (
 	"os/signal"
 	"slices"
 	"syscall"
+	"time"
 
+	"github.com/baalimago/go_away_boilerplate/pkg/ancli"
 	"github.com/baalimago/repeater/internal/output"
 )
 
@@ -33,6 +35,7 @@ var (
 
 func main() {
 	flag.Parse()
+	ancli.Newline = true
 	args := flag.Args()
 	useColor = !(useColor && *colorFlag)
 
@@ -68,6 +71,8 @@ func main() {
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, syscall.SIGINT, syscall.SIGTERM)
 
+	// Tiny sleep to allow workers to state where they are writing their output
+	time.Sleep(time.Millisecond * 100)
 	fmt.Println("Listening for termination signals. Press Ctrl+C to exit.")
 
 	// Block until a termination signal is received, or if all commands are done
