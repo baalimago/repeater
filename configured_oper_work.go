@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/baalimago/go_away_boilerplate/pkg/ancli"
 	"github.com/baalimago/go_away_boilerplate/pkg/threadsafe"
 	"github.com/baalimago/repeater/pkg/filetools"
 )
@@ -27,15 +29,21 @@ func (c *configuredOper) replaceIncrement(args []string, i int) []string {
 	return args
 }
 
-func (c *configuredOper) doWork(workerID, taskIdx int) Result {
+func (c *configuredOper) doWork(workerID, taskIdx int, tee io.Writer) Result {
 	res := Result{
 		WorkerID: workerID,
 		Idx:      taskIdx,
 	}
 	args := c.replaceIncrement(c.args[1:], taskIdx)
 	do := exec.Command(c.args[0], args...)
-	do.Stdout = &res
-	do.Stderr = &res
+	if tee != nil {
+		allOut := io.MultiWriter(&res, tee)
+		do.Stdout = allOut
+		do.Stderr = allOut
+	} else {
+		do.Stdout = &res
+		do.Stderr = &res
+	}
 	t0 := time.Now()
 	err := do.Run()
 	timeSpent := time.Since(t0)
@@ -52,6 +60,13 @@ func (c *configuredOper) doWork(workerID, taskIdx int) Result {
 func (c *configuredOper) setupWorkers(workCtx context.Context, workChan chan int, resultChan chan Result) {
 	for i := 0; i < c.workers; i++ {
 		go func(workerID int) {
+			tmpFile, err := os.CreateTemp("",
+				fmt.Sprintf("repeater-worker-%v-", workerID))
+			if err != nil {
+				ancli.Errf("failed to create temp output file: %v", err)
+			} else {
+				ancli.Noticef("output for worker: %v is in: %v", workerID, tmpFile.Name())
+			}
 			for {
 				select {
 				case <-workCtx.Done():
@@ -71,7 +86,7 @@ func (c *configuredOper) setupWorkers(workCtx context.Context, workChan chan int
 					}
 					c.amIdleWorkers--
 					c.workPlanMu.Unlock()
-					res := c.doWork(workerID, taskIdx)
+					res := c.doWork(workerID, taskIdx, tmpFile)
 					c.workPlanMu.Lock()
 					c.amIdleWorkers++
 					if !res.IsError {
