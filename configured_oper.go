@@ -36,6 +36,7 @@ type configuredOper struct {
 	startedAt             time.Time
 	rollingAverageRuntime time.Duration
 	totalRuntime          time.Duration
+	outputOnSuccess       bool
 }
 
 type userQuitError string
@@ -64,6 +65,7 @@ func New(am, workers int,
 	increment bool,
 	resultFlag string,
 	retryOnFail bool,
+	outputOnSuccess bool,
 ) (configuredOper, error) {
 	shouldHaveReportFile := pMode == output.BOTH || pMode == output.FILE ||
 		oMode == output.BOTH || oMode == output.FILE
@@ -164,6 +166,12 @@ report file mode: %v`, c.am, c.args, c.increment, c.workers, c.progress, c.progr
 }
 
 func (c *configuredOper) writeOutput(res *Result) {
+	// If we should not output on success and
+	// if the outcome is not an error (a success)
+	if !c.outputOnSuccess && !res.IsError {
+		// then return
+		return
+	}
 	switch c.output {
 	case output.STDOUT:
 		fmt.Fprintf(os.Stdout, "%v", res.Output)
