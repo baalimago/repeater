@@ -187,10 +187,99 @@ func Test_results(t *testing.T) {
 	})
 }
 
+func Test_configuredOper_writeOutput_hideOutputOnSuccess(t *testing.T) {
+	// Matrix validating that when hideOutputOnSuccess is true, output is only
+	// written on errors, while successful runs are suppressed. When
+	// hideOutputOnSuccess is false (the zero value), output is always written.
+	testCases := []struct {
+		name                string
+		hideOutputOnSuccess bool
+		isError             bool
+		wantWritten         bool
+	}{
+		{"suppress success when hideOutputOnSuccess=true", true, false, false},
+		{"emit error even when hideOutputOnSuccess=true", true, true, true},
+		{"emit success when hideOutputOnSuccess=false", false, false, true},
+		{"emit error when hideOutputOnSuccess=false", false, true, true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			testFile := testboil.CreateTestFile(t, "tFile")
+			wantOutput := "some-output"
+			c := configuredOper{
+				output:              output.FILE,
+				outputFile:          testFile,
+				hideOutputOnSuccess: tc.hideOutputOnSuccess,
+			}
+			res := Result{Output: wantOutput, IsError: tc.isError}
+
+			c.writeOutput(&res)
+
+			testFileName := testFile.Name()
+			testFile.Close()
+			got, err := checkReportFileContent(testFileName)
+			if err != nil {
+				t.Fatalf("failed to get report file: %v", err)
+			}
+
+			if tc.wantWritten && got != wantOutput {
+				t.Fatalf("expected output %q to be written, got: %q", wantOutput, got)
+			}
+			if !tc.wantWritten && got != "" {
+				t.Fatalf("expected no output to be written, got: %q", got)
+			}
+		})
+	}
+}
+
+// Test_configuredOper_run_onlyOutputOnError validates the same behavior
+// end-to-end through run: with hideOutputOnSuccess=true, a successful command
+// produces no output while a failing command does.
+func Test_configuredOper_run_onlyOutputOnError(t *testing.T) {
+	runTest := func(t *testing.T, args []string, wantOutput bool) {
+		testFile := testboil.CreateTestFile(t, "tFile")
+		c := configuredOper{
+			am:                  1,
+			args:                args,
+			progress:            output.HIDDEN,
+			output:              output.FILE,
+			outputFile:          testFile,
+			hideOutputOnSuccess: true,
+			amIdleWorkers:       1,
+			workPlanMu:          &sync.Mutex{},
+			workerWg:            &sync.WaitGroup{},
+		}
+		c.workerWg.Add(1)
+
+		c.run(context.Background())
+		testFileName := testFile.Name()
+		testFile.Close()
+		got, err := checkReportFileContent(testFileName)
+		if err != nil {
+			t.Fatalf("failed to get report file: %v", err)
+		}
+		if wantOutput && got == "" {
+			t.Fatalf("expected output on error, got empty string")
+		}
+		if !wantOutput && got != "" {
+			t.Fatalf("expected no output on success, got: %q", got)
+		}
+	}
+
+	t.Run("it should not output on success", func(t *testing.T) {
+		runTest(t, []string{"printf", "success-output"}, false)
+	})
+	t.Run("it should output on error", func(t *testing.T) {
+		// 'false' exits non-zero, so doWork flags the result as an error.
+		runTest(t, []string{"false"}, true)
+	})
+}
+
 func Test_configuredOper_New(t *testing.T) {
 	t.Run("it should return incrementConfigError if increment is true and no args contains 'INC'", func(t *testing.T) {
 		args := []string{"test", "abc"}
-		_, gotErr := New(0, 0, args, output.HIDDEN, "testing", output.HIDDEN, "", "", true, "", false)
+		_, gotErr := New(0, 0, args, output.HIDDEN, "testing", output.HIDDEN, "", "", true, "", false, false)
 		if gotErr == nil {
 			t.Fatal("expected to get error, got nil")
 		}
@@ -209,7 +298,7 @@ func Test_configuredOper_New(t *testing.T) {
 
 	t.Run("it should not return an error if increment is true and one argument is 'INC'", func(t *testing.T) {
 		args := []string{"test", "abc", "INC"}
-		_, gotErr := New(0, 0, args, output.HIDDEN, "testing", output.HIDDEN, "", "", true, "", false)
+		_, gotErr := New(0, 0, args, output.HIDDEN, "testing", output.HIDDEN, "", "", true, "", false, false)
 		if gotErr != nil {
 			t.Fatalf("expected nil, got: %v", gotErr)
 		}
@@ -217,7 +306,7 @@ func Test_configuredOper_New(t *testing.T) {
 
 	t.Run("it should not return an error if increment is true and one argument contains 'INC'", func(t *testing.T) {
 		args := []string{"test", "abc", "another-argument/INC"}
-		_, gotErr := New(0, 0, args, output.HIDDEN, "testing", output.HIDDEN, "", "", true, "", false)
+		_, gotErr := New(0, 0, args, output.HIDDEN, "testing", output.HIDDEN, "", "", true, "", false, false)
 		if gotErr != nil {
 			t.Fatalf("expected nil, got: %v", gotErr)
 		}
@@ -227,7 +316,7 @@ func Test_configuredOper_New(t *testing.T) {
 		am := 1
 		workers := 2
 		args := []string{"test", "abc"}
-		_, gotErr := New(am, workers, args, output.HIDDEN, "testing", output.HIDDEN, "", "", false, "", false)
+		_, gotErr := New(am, workers, args, output.HIDDEN, "testing", output.HIDDEN, "", "", false, "", false, false)
 		if gotErr == nil {
 			t.Fatal("expected to get error, got nil")
 		}
@@ -241,16 +330,31 @@ func Test_configuredOper_New(t *testing.T) {
 
 	t.Run("it should not return an error if the number of workers is lower than the number of times to repeat the command", func(t *testing.T) {
 		args := []string{"test", "abc"}
-		_, gotErr := New(2, 1, args, output.HIDDEN, "testing", output.HIDDEN, "", "", false, "", false)
+		_, gotErr := New(2, 1, args, output.HIDDEN, "testing", output.HIDDEN, "", "", false, "", false, false)
 		if gotErr != nil {
 			t.Fatalf("expected nil, got: %v", gotErr)
 		}
 	})
 	t.Run("it should not return an error if the number of workers is equal to the number of times to repeat the command", func(t *testing.T) {
 		args := []string{"test", "abc"}
-		_, gotErr := New(2, 2, args, output.HIDDEN, "testing", output.HIDDEN, "", "", false, "", false)
+		_, gotErr := New(2, 2, args, output.HIDDEN, "testing", output.HIDDEN, "", "", false, "", false, false)
 		if gotErr != nil {
 			t.Fatalf("expected nil, got: %v", gotErr)
+		}
+	})
+
+	// Guards against the hideOutputOnSuccess argument being accepted but never
+	// wired into the returned struct (a dead flag).
+	t.Run("it should wire the hideOutputOnSuccess argument into the returned struct", func(t *testing.T) {
+		for _, want := range []bool{true, false} {
+			args := []string{"true"}
+			c, gotErr := New(1, 1, args, output.HIDDEN, "testing", output.HIDDEN, "", "", false, "", false, want)
+			if gotErr != nil {
+				t.Fatalf("expected nil, got: %v", gotErr)
+			}
+			if c.hideOutputOnSuccess != want {
+				t.Fatalf("expected hideOutputOnSuccess: %v, got: %v", want, c.hideOutputOnSuccess)
+			}
 		}
 	})
 }

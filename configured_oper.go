@@ -36,6 +36,7 @@ type configuredOper struct {
 	startedAt             time.Time
 	rollingAverageRuntime time.Duration
 	totalRuntime          time.Duration
+	hideOutputOnSuccess   bool
 }
 
 type userQuitError string
@@ -64,6 +65,7 @@ func New(am, workers int,
 	increment bool,
 	resultFlag string,
 	retryOnFail bool,
+	hideOutputOnSuccess bool,
 ) (configuredOper, error) {
 	shouldHaveReportFile := pMode == output.BOTH || pMode == output.FILE ||
 		oMode == output.BOTH || oMode == output.FILE
@@ -81,19 +83,20 @@ func New(am, workers int,
 	}
 
 	c := configuredOper{
-		am:             am,
-		workers:        workers,
-		args:           args,
-		progress:       pMode,
-		progressFormat: progressFormat,
-		output:         oMode,
-		outputFileMu:   &sync.Mutex{},
-		increment:      increment,
-		amSuccess:      0,
-		workerWg:       &sync.WaitGroup{},
-		amIdleWorkers:  workers,
-		workPlanMu:     &sync.Mutex{},
-		retryOnFail:    retryOnFail,
+		am:                  am,
+		workers:             workers,
+		args:                args,
+		progress:            pMode,
+		progressFormat:      progressFormat,
+		output:              oMode,
+		outputFileMu:        &sync.Mutex{},
+		increment:           increment,
+		amSuccess:           0,
+		workerWg:            &sync.WaitGroup{},
+		amIdleWorkers:       workers,
+		workPlanMu:          &sync.Mutex{},
+		retryOnFail:         retryOnFail,
+		hideOutputOnSuccess: hideOutputOnSuccess,
 	}
 
 	c.workerWg.Add(workers)
@@ -164,6 +167,11 @@ report file mode: %v`, c.am, c.args, c.increment, c.workers, c.progress, c.progr
 }
 
 func (c *configuredOper) writeOutput(res *Result) {
+	// If output on success is hidden and the outcome
+	// is not an error (a success), then return
+	if c.hideOutputOnSuccess && !res.IsError {
+		return
+	}
 	switch c.output {
 	case output.STDOUT:
 		fmt.Fprintf(os.Stdout, "%v", res.Output)

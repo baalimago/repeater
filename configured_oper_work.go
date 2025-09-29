@@ -157,7 +157,8 @@ func (c *configuredOper) runResultCollector(ctx context.Context, resultChan chan
 			fmt.Sprintf(c.progressFormat,
 				amSuccess, amFails, c.am,
 				c.startedAt.Format(time.RFC3339), timeLeft.Seconds(), estCompletion.Format(time.RFC3339)),
-			progressStreams)
+			progressStreams,
+		)
 		return amSuccess
 	}
 
