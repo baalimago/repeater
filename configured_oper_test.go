@@ -132,6 +132,76 @@ func Test_configuredOper(t *testing.T) {
 	})
 }
 
+func Test_getTimeStrings(t *testing.T) {
+	t.Run("doneAt should be anchored to now, not startedAt", func(t *testing.T) {
+		c := configuredOper{
+			am:                    10,
+			rollingAverageRuntime: time.Second,
+			startedAt:             time.Now().Add(-1 * time.Hour),
+		}
+		// 5 results, all successful — tasksLeft = 5
+		for i := 0; i < 5; i++ {
+			c.results = append(c.results, Result{IsError: false})
+		}
+		doneIn, doneAt := c.getTimeStrings(5)
+		expectedDoneIn := 5 * time.Second
+		if doneIn != expectedDoneIn {
+			t.Fatalf("doneIn: got %v, want %v", doneIn, expectedDoneIn)
+		}
+		// doneAt should be close to now+doneIn, not startedAt+doneIn
+		expectedDoneAt := time.Now().Add(doneIn)
+		diff := doneAt.Sub(expectedDoneAt)
+		if diff < 0 {
+			diff = -diff
+		}
+		if diff > 100*time.Millisecond {
+			t.Fatalf("doneAt too far from now+doneIn: got %v (%v from startedAt), want ~%v (diff: %v)",
+				doneAt, doneAt.Sub(c.startedAt), expectedDoneAt, diff)
+		}
+	})
+
+	t.Run("retryOnFail should use successes for tasksLeft, not failures", func(t *testing.T) {
+		c := configuredOper{
+			am:                    100,
+			retryOnFail:           true,
+			rollingAverageRuntime: time.Second,
+		}
+		// 10 results: 8 successes, 2 failures
+		for i := 0; i < 8; i++ {
+			c.results = append(c.results, Result{IsError: false})
+		}
+		for i := 0; i < 2; i++ {
+			c.results = append(c.results, Result{IsError: true})
+		}
+		doneIn, _ := c.getTimeStrings(8)
+		// successRate = 1 - (8/10) = 0.2 (20% failure rate)
+		// tasksLeft = 100 - 8 = 92 (successes needed)
+		// inflated: 92 / 0.2 = 460
+		expectedDoneIn := 460 * time.Second
+		if doneIn != expectedDoneIn {
+			t.Fatalf("doneIn: got %v, want %v", doneIn, expectedDoneIn)
+		}
+	})
+
+	t.Run("non-retry uses amResults for tasksLeft", func(t *testing.T) {
+		c := configuredOper{
+			am:                    10,
+			rollingAverageRuntime: time.Second,
+		}
+		// 4 results total
+		for i := 0; i < 3; i++ {
+			c.results = append(c.results, Result{IsError: false})
+		}
+		c.results = append(c.results, Result{IsError: true})
+		doneIn, _ := c.getTimeStrings(3)
+		// tasksLeft = 10 - 4 = 6
+		expectedDoneIn := 6 * time.Second
+		if doneIn != expectedDoneIn {
+			t.Fatalf("doneIn: got %v, want %v", doneIn, expectedDoneIn)
+		}
+	})
+}
+
 func Test_results(t *testing.T) {
 	t.Run("it should report output into results", func(t *testing.T) {
 		// This should ouput "test"

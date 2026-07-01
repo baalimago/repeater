@@ -126,13 +126,13 @@ func (c *configuredOper) getTimeStrings(amSuccess int) (doneIn time.Duration, do
 	// If we retry on fail, calculate the failure rate and multiply the remaining tasks with
 	// failure rate to estimate how many attempts it will take to complete all
 	if c.retryOnFail {
-		tasksLeft = c.am - (amResults - amSuccess)
+		tasksLeft = c.am - amSuccess
 		successRate := 1 - (float32(amSuccess) / float32(amResults))
 		tasksLeft = int((float32(tasksLeft) / successRate))
 	}
 	doneIn = c.rollingAverageRuntime * time.Duration(tasksLeft)
 	// fmt.Printf("avg runtime time: %v, est tasks left: %v", c.rollingAverageRuntime, tasksLeft)
-	doneAt = c.startedAt.Add(doneIn)
+	doneAt = time.Now().Add(doneIn)
 	return
 }
 
