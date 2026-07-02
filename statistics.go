@@ -6,12 +6,19 @@ import (
 	"time"
 )
 
+type OutputEvent struct {
+	At   time.Time
+	Text string
+}
+
 type Result struct {
 	WorkerID             int           `json:"workerID"`
 	Idx                  int           `json:"taskIdx"`
 	Runtime              time.Duration `json:"runtime"`
 	RuntimeHumanReadable string        `json:"runtimeHumanReadable"`
 	Output               string        `json:"output"`
+	Stdout               []OutputEvent `json:"stdout,omitempty"`
+	Stderr               []OutputEvent `json:"stderr,omitempty"`
 	IsError              bool          `json:"isError"`
 	IsCancelled          bool          `json:"isCancelled"`
 }

@@ -16,6 +16,29 @@ import (
 	"github.com/baalimago/repeater/pkg/filetools"
 )
 
+type outputStream string
+
+const (
+	stdoutStream outputStream = "stdout"
+	stderrStream outputStream = "stderr"
+)
+
+type outputRecorder struct {
+	res    *Result
+	stream outputStream
+}
+
+func (o outputRecorder) Write(p []byte) (n int, err error) {
+	event := OutputEvent{At: time.Now().UTC(), Text: string(p)}
+	if o.stream == stdoutStream {
+		o.res.Stdout = append(o.res.Stdout, event)
+	} else {
+		o.res.Stderr = append(o.res.Stderr, event)
+	}
+	o.res.Output += string(p)
+	return len(p), nil
+}
+
 func (c *configuredOper) replaceIncrement(args []string, i int) []string {
 	if c.increment {
 		var newArgs []string
@@ -37,13 +60,14 @@ func (c *configuredOper) doWork(ctx context.Context, workerID, taskIdx int, tee 
 	}
 	args := c.replaceIncrement(c.args[1:], taskIdx)
 	do := exec.CommandContext(ctx, c.args[0], args...)
+	stdoutWriter := io.Writer(outputRecorder{res: &res, stream: stdoutStream})
+	stderrWriter := io.Writer(outputRecorder{res: &res, stream: stderrStream})
 	if tee != nil {
-		allOut := io.MultiWriter(&res, tee)
-		do.Stdout = allOut
-		do.Stderr = allOut
+		do.Stdout = io.MultiWriter(stdoutWriter, tee)
+		do.Stderr = io.MultiWriter(stderrWriter, tee)
 	} else {
-		do.Stdout = &res
-		do.Stderr = &res
+		do.Stdout = stdoutWriter
+		do.Stderr = stderrWriter
 	}
 	t0 := time.Now()
 	err := do.Run()
