@@ -21,6 +21,7 @@ type configuredOper struct {
 	progress              output.Mode
 	progressFormat        string
 	output                output.Mode
+	outputFormat          string
 	outputFile            *os.File
 	outputFileMu          *sync.Mutex
 	outputFileMode        string
@@ -37,6 +38,7 @@ type configuredOper struct {
 	rollingAverageRuntime time.Duration
 	totalRuntime          time.Duration
 	hideOutputOnSuccess   bool
+	wasCancelled          bool
 }
 
 type userQuitError string
@@ -46,6 +48,11 @@ func (uqe userQuitError) Error() string {
 }
 
 const UserQuitError userQuitError = "user quit"
+
+const (
+	outputFormatV1 = "v1"
+	outputFormatV2 = "v2"
+)
 
 type incrementConfigError struct {
 	args []string
@@ -60,6 +67,7 @@ func New(am, workers int,
 	pMode output.Mode,
 	progressFormat string,
 	oMode output.Mode,
+	outFormat string,
 	outputFile string,
 	outputFileMode string,
 	increment bool,
@@ -89,6 +97,7 @@ func New(am, workers int,
 		progress:            pMode,
 		progressFormat:      progressFormat,
 		output:              oMode,
+		outputFormat:        outFormat,
 		outputFileMu:        &sync.Mutex{},
 		increment:           increment,
 		amSuccess:           0,
@@ -172,15 +181,30 @@ func (c *configuredOper) writeOutput(res *Result) {
 	if c.hideOutputOnSuccess && !res.IsError {
 		return
 	}
+	formatted := res.Output
+	if c.outputFormat == outputFormatV2 {
+		formatted = formatOutputV2(res)
+	}
 	switch c.output {
 	case output.STDOUT:
-		fmt.Fprintf(os.Stdout, "%v", res.Output)
+		fmt.Fprintf(os.Stdout, "%v", formatted)
 	case output.FILE:
-		fmt.Fprintf(c.outputFile, "%v", res.Output)
+		fmt.Fprintf(c.outputFile, "%v", formatted)
 	case output.BOTH:
-		fmt.Fprintf(os.Stdout, "%v", res.Output)
-		fmt.Fprintf(c.outputFile, "%v", res.Output)
+		fmt.Fprintf(os.Stdout, "%v", formatted)
+		fmt.Fprintf(c.outputFile, "%v", formatted)
 	}
+}
+
+func formatOutputV2(res *Result) string {
+	formatEvents := func(label string, events []OutputEvent) string {
+		out := fmt.Sprintf("%s:\n", label)
+		for _, event := range events {
+			out += fmt.Sprintf("%s: %s", event.At.Format(time.RFC3339), event.Text)
+		}
+		return out
+	}
+	return fmt.Sprintf("%s---\n%s", formatEvents("stdout", res.Stdout), formatEvents("stderr", res.Stderr))
 }
 
 func (c *configuredOper) setupProgressStreams() []io.Writer {

@@ -355,6 +355,62 @@ func Test_configuredOper_writeOutput_hideOutputOnSuccess(t *testing.T) {
 	}
 }
 
+func Test_configuredOper_writeOutput_formatV2(t *testing.T) {
+	testFile := testboil.CreateTestFile(t, "tFile")
+	c := configuredOper{
+		output:       output.FILE,
+		outputFile:   testFile,
+		outputFormat: outputFormatV2,
+	}
+	res := Result{
+		Stdout: []OutputEvent{{At: time.Unix(1, 0).UTC(), Text: "hello\n"}},
+		Stderr: []OutputEvent{{At: time.Unix(2, 0).UTC(), Text: "boom\n"}},
+	}
+
+	c.writeOutput(&res)
+
+	testFileName := testFile.Name()
+	testFile.Close()
+	got, err := checkReportFileContent(testFileName)
+	if err != nil {
+		t.Fatalf("failed to get report file: %v", err)
+	}
+	if !strings.Contains(got, "stdout:\n1970-01-01T00:00:01Z: hello\n") {
+		t.Fatalf("expected stdout timeline in v2 output, got: %q", got)
+	}
+	if !strings.Contains(got, "---\nstderr:\n1970-01-01T00:00:02Z: boom\n") {
+		t.Fatalf("expected stderr timeline in v2 output, got: %q", got)
+	}
+}
+
+func Test_outputRecorder_capturesTimestampedStreams(t *testing.T) {
+	res := Result{}
+	stdout := outputRecorder{res: &res, stream: stdoutStream}
+	stderr := outputRecorder{res: &res, stream: stderrStream}
+
+	_, _ = stdout.Write([]byte("hello\n"))
+	_, _ = stderr.Write([]byte("boom\n"))
+
+	if len(res.Stdout) != 1 {
+		t.Fatalf("expected one stdout event, got %d", len(res.Stdout))
+	}
+	if len(res.Stderr) != 1 {
+		t.Fatalf("expected one stderr event, got %d", len(res.Stderr))
+	}
+	if res.Stdout[0].Text != "hello\n" {
+		t.Fatalf("unexpected stdout text: %q", res.Stdout[0].Text)
+	}
+	if res.Stderr[0].Text != "boom\n" {
+		t.Fatalf("unexpected stderr text: %q", res.Stderr[0].Text)
+	}
+	if res.Stdout[0].At.IsZero() || res.Stderr[0].At.IsZero() {
+		t.Fatal("expected timestamps to be recorded")
+	}
+	if !strings.Contains(res.Output, "hello\n") || !strings.Contains(res.Output, "boom\n") {
+		t.Fatalf("expected combined output to include both streams, got: %q", res.Output)
+	}
+}
+
 // Test_configuredOper_run_onlyOutputOnError validates the same behavior
 // end-to-end through run: with hideOutputOnSuccess=true, a successful command
 // produces no output while a failing command does.
@@ -398,10 +454,49 @@ func Test_configuredOper_run_onlyOutputOnError(t *testing.T) {
 	})
 }
 
+func Test_configuredOper_run_cancellation(t *testing.T) {
+	t.Run("it should cancel in-flight command and report cancelled stats", func(t *testing.T) {
+		c := configuredOper{
+			am:            1,
+			args:          []string{"bash", "-lc", "sleep 5"},
+			workPlanMu:    &sync.Mutex{},
+			workerWg:      &sync.WaitGroup{},
+			amIdleWorkers: 1,
+		}
+		c.workerWg.Add(1)
+
+		ctx, cancel := context.WithCancel(context.Background())
+		time.AfterFunc(100*time.Millisecond, cancel)
+
+		started := time.Now()
+		stats := c.run(ctx)
+		elapsed := time.Since(started)
+
+		if elapsed >= 3*time.Second {
+			t.Fatalf("expected cancellation to stop promptly, got runtime %v", elapsed)
+		}
+		if stats.amDone < 0 || stats.amDone > 1 {
+			t.Fatalf("expected completed count in [0,1], got %d", stats.amDone)
+		}
+		if len(stats.Results) > 0 && !stats.Results[0].IsError {
+			if !stats.Results[0].IsCancelled {
+				t.Fatal("expected cancelled command result to be marked as cancelled")
+			}
+		}
+		if !strings.Contains(stats.String(), fmt.Sprintf("completed: %d", stats.amDone)) {
+			t.Fatalf("expected statistics string to report completed count, got: %s", stats.String())
+		}
+		stats.cancelled = true
+		if !strings.Contains(stats.String(), "(cancelled)") {
+			t.Fatalf("expected statistics string to mark cancellation, got: %s", stats.String())
+		}
+	})
+}
+
 func Test_configuredOper_New(t *testing.T) {
 	t.Run("it should return incrementConfigError if increment is true and no args contains 'INC'", func(t *testing.T) {
 		args := []string{"test", "abc"}
-		_, gotErr := New(0, 0, args, output.HIDDEN, "testing", output.HIDDEN, "", "", true, "", false, false)
+		_, gotErr := New(0, 0, args, output.HIDDEN, "testing", output.HIDDEN, outputFormatV1, "", "", true, "", false, false)
 		if gotErr == nil {
 			t.Fatal("expected to get error, got nil")
 		}
@@ -420,7 +515,7 @@ func Test_configuredOper_New(t *testing.T) {
 
 	t.Run("it should not return an error if increment is true and one argument is 'INC'", func(t *testing.T) {
 		args := []string{"test", "abc", "INC"}
-		_, gotErr := New(0, 0, args, output.HIDDEN, "testing", output.HIDDEN, "", "", true, "", false, false)
+		_, gotErr := New(0, 0, args, output.HIDDEN, "testing", output.HIDDEN, outputFormatV1, "", "", true, "", false, false)
 		if gotErr != nil {
 			t.Fatalf("expected nil, got: %v", gotErr)
 		}
@@ -428,7 +523,7 @@ func Test_configuredOper_New(t *testing.T) {
 
 	t.Run("it should not return an error if increment is true and one argument contains 'INC'", func(t *testing.T) {
 		args := []string{"test", "abc", "another-argument/INC"}
-		_, gotErr := New(0, 0, args, output.HIDDEN, "testing", output.HIDDEN, "", "", true, "", false, false)
+		_, gotErr := New(0, 0, args, output.HIDDEN, "testing", output.HIDDEN, outputFormatV1, "", "", true, "", false, false)
 		if gotErr != nil {
 			t.Fatalf("expected nil, got: %v", gotErr)
 		}
@@ -438,7 +533,7 @@ func Test_configuredOper_New(t *testing.T) {
 		am := 1
 		workers := 2
 		args := []string{"test", "abc"}
-		_, gotErr := New(am, workers, args, output.HIDDEN, "testing", output.HIDDEN, "", "", false, "", false, false)
+		_, gotErr := New(am, workers, args, output.HIDDEN, "testing", output.HIDDEN, outputFormatV1, "", "", false, "", false, false)
 		if gotErr == nil {
 			t.Fatal("expected to get error, got nil")
 		}
@@ -452,14 +547,14 @@ func Test_configuredOper_New(t *testing.T) {
 
 	t.Run("it should not return an error if the number of workers is lower than the number of times to repeat the command", func(t *testing.T) {
 		args := []string{"test", "abc"}
-		_, gotErr := New(2, 1, args, output.HIDDEN, "testing", output.HIDDEN, "", "", false, "", false, false)
+		_, gotErr := New(2, 1, args, output.HIDDEN, "testing", output.HIDDEN, outputFormatV1, "", "", false, "", false, false)
 		if gotErr != nil {
 			t.Fatalf("expected nil, got: %v", gotErr)
 		}
 	})
 	t.Run("it should not return an error if the number of workers is equal to the number of times to repeat the command", func(t *testing.T) {
 		args := []string{"test", "abc"}
-		_, gotErr := New(2, 2, args, output.HIDDEN, "testing", output.HIDDEN, "", "", false, "", false, false)
+		_, gotErr := New(2, 2, args, output.HIDDEN, "testing", output.HIDDEN, outputFormatV1, "", "", false, "", false, false)
 		if gotErr != nil {
 			t.Fatalf("expected nil, got: %v", gotErr)
 		}
@@ -470,7 +565,7 @@ func Test_configuredOper_New(t *testing.T) {
 	t.Run("it should wire the hideOutputOnSuccess argument into the returned struct", func(t *testing.T) {
 		for _, want := range []bool{true, false} {
 			args := []string{"true"}
-			c, gotErr := New(1, 1, args, output.HIDDEN, "testing", output.HIDDEN, "", "", false, "", false, want)
+			c, gotErr := New(1, 1, args, output.HIDDEN, "testing", output.HIDDEN, outputFormatV1, "", "", false, "", false, want)
 			if gotErr != nil {
 				t.Fatalf("expected nil, got: %v", gotErr)
 			}

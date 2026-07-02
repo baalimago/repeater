@@ -25,6 +25,7 @@ var (
 	progressFlag        = flag.String("progress", "STDOUT", "Options are: ['HIDDEN', 'FILE', 'STDOUT', 'BOTH']")
 	progressFormatFlag  = flag.String("progressFormat", DefaultProgressFormat, "Set the format for the output where 1st arg is the iteration and 2d arg is the amount of runs, 3d total, 4th start, 5th countdown (human-readable, e.g. '1d 2h 3m 4s'), 6th est completion time.")
 	outputFlag          = flag.String("output", "HIDDEN", "Options are: ['HIDDEN', 'FILE', 'STDOUT', 'BOTH']")
+	outputFormatFlag    = flag.String("outputFormat", outputFormatV1, "Options are: ['v1', 'v2']")
 	fileFlag            = flag.String("file", "", "Path to the file where the report will be saved, configure file conflicts automatically with 'fileMode'")
 	fileModeFlag        = flag.String("fileMode", "", "Configure how the report file should be treated. If a file exists, and this option isn't set, user will be queried. Options are: ['t'runcate, 'a'ppend] ")
 	statisticsFlag      = flag.Bool("statistics", true, "Set to true if you don't wish to see statistics of the repeated command.")
@@ -50,6 +51,7 @@ func main() {
 		args, output.New(progressFlag),
 		*progressFormatFlag,
 		output.New(outputFlag),
+		*outputFormatFlag,
 		*fileFlag,
 		*fileModeFlag,
 		*incrementFlag,
@@ -68,6 +70,7 @@ func main() {
 
 	ctx, ctxCancel := context.WithCancel(context.Background())
 	isDone := make(chan statistics)
+	wasCancelled := false
 	go func() {
 		isDone <- c.run(ctx)
 	}()
@@ -100,20 +103,18 @@ func main() {
 		printOK("The repeat, has been done. Farewell.\n")
 		os.Exit(0)
 	case <-signalChannel:
+		wasCancelled = true
 	}
 	ctxCancel()
 	select {
 	case stats := <-isDone:
+		if wasCancelled {
+			stats.cancelled = true
+		}
 		if *statisticsFlag {
 			fmt.Printf("%s\n", &stats)
 		}
 		printOK("graceful shutdown complete")
-	case <-signalChannel:
-		printErr("aborting graceful shutdown")
-	case <-isDone:
-		if ctx.Err() != nil {
-			printOK("graceful shutdown complete")
-		}
 	case <-signalChannel:
 		printErr("aborting graceful shutdown")
 	}
