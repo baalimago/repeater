@@ -37,6 +37,7 @@ type configuredOper struct {
 	rollingAverageRuntime time.Duration
 	totalRuntime          time.Duration
 	hideOutputOnSuccess   bool
+	wasCancelled          bool
 }
 
 type userQuitError string

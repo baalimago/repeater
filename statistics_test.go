@@ -2,6 +2,7 @@ package main
 
 import (
 	"math"
+	"strings"
 	"testing"
 	"time"
 )
@@ -63,5 +64,38 @@ func TestCalcStats(t *testing.T) {
 		math.Pow(float64(30*time.Second-expectedAverage), 2)) / 3))
 	if stats.stdDev != expectedStdDev {
 		t.Errorf("Expected standard deviation: %v, got: %v", expectedStdDev, stats.stdDev)
+	}
+}
+
+func TestCalcStats_separatesFailuresFromCancelled(t *testing.T) {
+	results := []Result{
+		{Idx: 1, Runtime: 10 * time.Second},
+		{Idx: 2, Runtime: 20 * time.Second, IsError: true},
+		{Idx: 3, Runtime: 30 * time.Second, IsCancelled: true},
+	}
+	c := configuredOper{am: 3, results: results}
+	stats := c.calcStats()
+	if stats.amFails != 1 {
+		t.Fatalf("expected 1 failure, got %d", stats.amFails)
+	}
+	if stats.amCancelled != 1 {
+		t.Fatalf("expected 1 cancelled, got %d", stats.amCancelled)
+	}
+	if stats.amDone != 3 {
+		t.Fatalf("expected 3 completed, got %d", stats.amDone)
+	}
+}
+
+func TestStatisticsString_reportsCompletedAndCancelled(t *testing.T) {
+	stats := statistics{am: 3, amDone: 1, amFails: 1, amCancelled: 1, cancelled: true}
+	got := stats.String()
+	if !strings.Contains(got, "completed: 1") {
+		t.Fatalf("expected completed count in statistics string, got: %s", got)
+	}
+	if !strings.Contains(got, "amount of cancelled: 1") {
+		t.Fatalf("expected cancelled count in statistics string, got: %s", got)
+	}
+	if !strings.Contains(got, "(cancelled)") {
+		t.Fatalf("expected cancelled marker in statistics string, got: %s", got)
 	}
 }

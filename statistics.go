@@ -13,18 +13,22 @@ type Result struct {
 	RuntimeHumanReadable string        `json:"runtimeHumanReadable"`
 	Output               string        `json:"output"`
 	IsError              bool          `json:"isError"`
+	IsCancelled          bool          `json:"isCancelled"`
 }
 
 type statistics struct {
-	am      int
-	amFails int
-	max     Result
-	min     Result
-	total   time.Duration
-	runtime time.Duration
-	average time.Duration
-	stdDev  time.Duration
-	Results []Result `json:"results"`
+	am          int
+	amDone      int
+	amFails     int
+	amCancelled int
+	cancelled   bool
+	max         Result
+	min         Result
+	total       time.Duration
+	runtime     time.Duration
+	average     time.Duration
+	stdDev      time.Duration
+	Results     []Result `json:"results"`
 }
 
 // Write implements io.Writer to get the output of the command for
@@ -43,8 +47,13 @@ func (c *configuredOper) calcStats() statistics {
 	minDur := time.Duration(9223372036854775807)
 	maxDur := time.Duration(-9223372036854775808)
 	amFails := 0
+	amCancelled := 0
 	var min, max Result
 	for _, r := range c.results {
+		if r.IsCancelled {
+			amCancelled++
+			continue
+		}
 		if r.IsError {
 			amFails++
 			continue
@@ -68,28 +77,35 @@ func (c *configuredOper) calcStats() statistics {
 	variance := varSum / float64(n)
 	stdDeviation := time.Duration(int64(math.Sqrt(variance)))
 	return statistics{
-		am:      c.am,
-		amFails: amFails,
-		runtime: c.runtime,
-		min:     min,
-		max:     max,
-		total:   tot,
-		average: time.Duration(avr),
-		stdDev:  stdDeviation,
-		Results: c.results,
+		am:          c.am,
+		amDone:      n,
+		amFails:     amFails,
+		amCancelled: amCancelled,
+		cancelled:   c.wasCancelled,
+		runtime:     c.runtime,
+		min:         min,
+		max:         max,
+		total:       tot,
+		average:     time.Duration(avr),
+		stdDev:      stdDeviation,
+		Results:     c.results,
 	}
 }
 
 func (s *statistics) String() string {
+	state := ""
+	if s.cancelled {
+		state = " (cancelled)"
+	}
 	return fmt.Sprintf(`
 == Statistics ==
-Amount of repitions: %v, amount of failures: %v,
+Amount of repitions: %v, completed: %v, amount of failures: %v, amount of cancelled: %v%s,
 The following is calculated on successful attempts:
   Runtime: %s, Total routine work time: %v,
   Average time per task: %v, Std deviation: %v
   Max time, index: %v, time: %v
   Min time, index: %v, time: %v`,
-		s.am, s.amFails,
+		s.am, s.amDone, s.amFails, s.amCancelled, state,
 		s.runtime, s.total,
 		s.average, s.stdDev,
 		s.max.Idx, s.max.Runtime,

@@ -398,6 +398,45 @@ func Test_configuredOper_run_onlyOutputOnError(t *testing.T) {
 	})
 }
 
+func Test_configuredOper_run_cancellation(t *testing.T) {
+	t.Run("it should cancel in-flight command and report cancelled stats", func(t *testing.T) {
+		c := configuredOper{
+			am:            1,
+			args:          []string{"bash", "-lc", "sleep 5"},
+			workPlanMu:    &sync.Mutex{},
+			workerWg:      &sync.WaitGroup{},
+			amIdleWorkers: 1,
+		}
+		c.workerWg.Add(1)
+
+		ctx, cancel := context.WithCancel(context.Background())
+		time.AfterFunc(100*time.Millisecond, cancel)
+
+		started := time.Now()
+		stats := c.run(ctx)
+		elapsed := time.Since(started)
+
+		if elapsed >= 3*time.Second {
+			t.Fatalf("expected cancellation to stop promptly, got runtime %v", elapsed)
+		}
+		if stats.amDone < 0 || stats.amDone > 1 {
+			t.Fatalf("expected completed count in [0,1], got %d", stats.amDone)
+		}
+		if len(stats.Results) > 0 && !stats.Results[0].IsError {
+			if !stats.Results[0].IsCancelled {
+				t.Fatal("expected cancelled command result to be marked as cancelled")
+			}
+		}
+		if !strings.Contains(stats.String(), fmt.Sprintf("completed: %d", stats.amDone)) {
+			t.Fatalf("expected statistics string to report completed count, got: %s", stats.String())
+		}
+		stats.cancelled = true
+		if !strings.Contains(stats.String(), "(cancelled)") {
+			t.Fatalf("expected statistics string to mark cancellation, got: %s", stats.String())
+		}
+	})
+}
+
 func Test_configuredOper_New(t *testing.T) {
 	t.Run("it should return incrementConfigError if increment is true and no args contains 'INC'", func(t *testing.T) {
 		args := []string{"test", "abc"}

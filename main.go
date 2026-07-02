@@ -68,6 +68,7 @@ func main() {
 
 	ctx, ctxCancel := context.WithCancel(context.Background())
 	isDone := make(chan statistics)
+	wasCancelled := false
 	go func() {
 		isDone <- c.run(ctx)
 	}()
@@ -100,20 +101,18 @@ func main() {
 		printOK("The repeat, has been done. Farewell.\n")
 		os.Exit(0)
 	case <-signalChannel:
+		wasCancelled = true
 	}
 	ctxCancel()
 	select {
 	case stats := <-isDone:
+		if wasCancelled {
+			stats.cancelled = true
+		}
 		if *statisticsFlag {
 			fmt.Printf("%s\n", &stats)
 		}
 		printOK("graceful shutdown complete")
-	case <-signalChannel:
-		printErr("aborting graceful shutdown")
-	case <-isDone:
-		if ctx.Err() != nil {
-			printOK("graceful shutdown complete")
-		}
 	case <-signalChannel:
 		printErr("aborting graceful shutdown")
 	}
