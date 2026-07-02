@@ -15,7 +15,7 @@ import (
 	"github.com/baalimago/repeater/internal/output"
 )
 
-const DefaultProgressFormat = "\rProgress: (Success/Fail/Requested Am)(%v/%v/%v), Start at: %v, Remaining: %.1fs, Est. done at: %v"
+const DefaultProgressFormat = "\rProgress: (Success/Fail/Requested Am)(%v/%v/%v), Start at: %v, Remaining: %s, Est. done at: %v"
 
 var (
 	amRunsFlag          = flag.Int("n", 1, "Amount of times you wish to repeat the command.")
@@ -23,7 +23,7 @@ var (
 	workersFlag         = flag.Int("w", 1, "Set the amout of workers to repeat the command with. Having more than 1 makes execution paralell. Expect performance diminishing returns when approaching CPU threads.")
 	colorFlag           = flag.Bool("nocolor", false, "Set to true to disable ansi-colored output")
 	progressFlag        = flag.String("progress", "STDOUT", "Options are: ['HIDDEN', 'FILE', 'STDOUT', 'BOTH']")
-	progressFormatFlag  = flag.String("progressFormat", DefaultProgressFormat, "Set the format for the output where 1st arg is the iteration and 2d arg is the amount of runs, 3d total, 4th start, 5th countdown, 6th est completion time.")
+	progressFormatFlag  = flag.String("progressFormat", DefaultProgressFormat, "Set the format for the output where 1st arg is the iteration and 2d arg is the amount of runs, 3d total, 4th start, 5th countdown (human-readable, e.g. '1d 2h 3m 4s'), 6th est completion time.")
 	outputFlag          = flag.String("output", "HIDDEN", "Options are: ['HIDDEN', 'FILE', 'STDOUT', 'BOTH']")
 	fileFlag            = flag.String("file", "", "Path to the file where the report will be saved, configure file conflicts automatically with 'fileMode'")
 	fileModeFlag        = flag.String("fileMode", "", "Configure how the report file should be treated. If a file exists, and this option isn't set, user will be queried. Options are: ['t'runcate, 'a'ppend] ")
