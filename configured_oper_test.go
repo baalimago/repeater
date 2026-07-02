@@ -202,6 +202,58 @@ func Test_getTimeStrings(t *testing.T) {
 	})
 }
 
+func Test_humanReadableDuration(t *testing.T) {
+	testCases := []struct {
+		name string
+		dur  time.Duration
+		want string
+	}{
+		{
+			name: "the reported 1221s example scales to minutes and seconds",
+			dur:  1221 * time.Second,
+			want: "20m 21s",
+		},
+		{
+			name: "sub-minute durations only show seconds",
+			dur:  45 * time.Second,
+			want: "45s",
+		},
+		{
+			name: "zero duration is 0s",
+			dur:  0,
+			want: "0s",
+		},
+		{
+			name: "negative durations are clamped to 0s",
+			dur:  -5 * time.Second,
+			want: "0s",
+		},
+		{
+			name: "exactly one hour keeps zeroed lower units after the leading unit",
+			dur:  time.Hour,
+			want: "1h 0m 0s",
+		},
+		{
+			name: "durations over a day include the days unit",
+			dur:  25*time.Hour + 61*time.Second,
+			want: "1d 1h 1m 1s",
+		},
+		{
+			name: "sub-second remainders are rounded to the nearest second",
+			dur:  90*time.Second + 600*time.Millisecond,
+			want: "1m 31s",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := humanReadableDuration(tc.dur)
+			if got != tc.want {
+				t.Fatalf("expected: %q, got: %q", tc.want, got)
+			}
+		})
+	}
+}
+
 func Test_results(t *testing.T) {
 	t.Run("it should report output into results", func(t *testing.T) {
 		// This should ouput "test"

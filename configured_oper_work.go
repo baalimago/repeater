@@ -120,6 +120,34 @@ func (c *configuredOper) runDelegator(ctx context.Context, workChan chan int) er
 	}
 }
 
+// humanReadableDuration formats a duration into days, hours, minutes and
+// seconds, omitting any leading units that are zero. It scales with the
+// magnitude of the duration, e.g. 1221s becomes "20m 21s", 45s becomes
+// "45s" and 90061s becomes "1d 1h 1m 1s".
+func humanReadableDuration(d time.Duration) string {
+	if d < 0 {
+		d = 0
+	}
+	totalSeconds := int64(d.Round(time.Second) / time.Second)
+	days := totalSeconds / 86400
+	hours := (totalSeconds % 86400) / 3600
+	minutes := (totalSeconds % 3600) / 60
+	seconds := totalSeconds % 60
+
+	var parts []string
+	if days > 0 {
+		parts = append(parts, fmt.Sprintf("%dd", days))
+	}
+	if hours > 0 || len(parts) > 0 {
+		parts = append(parts, fmt.Sprintf("%dh", hours))
+	}
+	if minutes > 0 || len(parts) > 0 {
+		parts = append(parts, fmt.Sprintf("%dm", minutes))
+	}
+	parts = append(parts, fmt.Sprintf("%ds", seconds))
+	return strings.Join(parts, " ")
+}
+
 func (c *configuredOper) getTimeStrings(amSuccess int) (doneIn time.Duration, doneAt time.Time) {
 	amResults := len(c.results)
 	tasksLeft := c.am - amResults
@@ -156,7 +184,7 @@ func (c *configuredOper) runResultCollector(ctx context.Context, resultChan chan
 		filetools.WriteStringIfPossible(
 			fmt.Sprintf(c.progressFormat,
 				amSuccess, amFails, c.am,
-				c.startedAt.Format(time.RFC3339), timeLeft.Seconds(), estCompletion.Format(time.RFC3339)),
+				c.startedAt.Format(time.RFC3339), humanReadableDuration(timeLeft), estCompletion.Format(time.RFC3339)),
 			progressStreams,
 		)
 		return amSuccess
